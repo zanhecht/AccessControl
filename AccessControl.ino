@@ -683,7 +683,7 @@ void doInit(unsigned long now) {
 Copyright
 ---------
 ### COPYRIGHT 2018 ZAN HECHT
-ARDUINO CROCKPOT SOUS VIDE AND TIMER is licensed under a Creative-
+ARDUINO ACCESS CONTROL is licensed under a Creative-
 Commons Attribution Share-Alike License.
 http://creativecommons.org/licenses/by-sa/3.0/
 You are free:
