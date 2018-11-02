@@ -1,13 +1,13 @@
 ////////////////////////////////////////////////////////////////////////
-//                       ACCESS CONTROL v0.1.0                        //
+//                       ACCESS CONTROL v0.2.0                        //
 ////////////////////////////////////////////////////////////////////////
 #define ID_1 'A'
 #define ID_2 'C'
 #define ID_3 '0'
-#define ID_4 '1'
+#define ID_4 '2'
 
 /*
-Zan Hecht - 7 May 2018
+Zan Hecht - 1 Nov 2018
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
@@ -210,7 +210,7 @@ void setup() {
   digitalWrite(GREEN_LED_PIN, HIGH);
   
   if (SERIAL_ENABLE) {
-    Serial.begin(115200);
+    Serial.begin(9600);
     Serial.println(F("Serial begin"));
     Serial.print(F("EEPROM size: ")); Serial.println(eLength);
   }
@@ -239,7 +239,7 @@ void loop() {
   
   if (lockoutEnd && !timeElapsed(now, lockoutEnd) ) {
     lockoutEnd = 0; //end lockout
-    if(SERIAL_ENABLE) { Serial.print(F("Lockout ended.")); }
+    if(SERIAL_ENABLE) { Serial.println(F("Lockout ended.")); }
   }
 
   bool wgAvailable = wg.available();
@@ -252,15 +252,12 @@ void loop() {
     if (wgAvailable) {
       codeType = wg.getWiegandType();
       code = wg.getCode();
-      if (SERIAL_ENABLE) {
+      if (SERIAL_ENABLE && codeType == 4) {
         Serial.print(F("Weigand read: "));
-        Serial.print(code);
-        Serial.print(F(" -- W"));
-        Serial.println(codeType);
+        Serial.println(code);
       }
     } else if (SERIAL_ENABLE && Serial.available()) {
       //Serial console input for debugging
-      Serial.println(F("Serial read"));
       while (Serial.available()  > 0) {
         byte serialRead = Serial.read();
         if (serialRead == 42) { // ASCII *
@@ -269,16 +266,22 @@ void loop() {
         } else if (serialRead == 35) { // ASCII #
           code = ESC_KEY;
           codeType = 4;
-        } else {
+        } else if (serialRead >= 48 && serialRead <= 57) { // digit
           code = (code * 10) + (serialRead - 48);
         }
+        interrupts();
         delay(25);
+        noInterrupts();
       }
       if (!codeType) { //determine input size if not overridden
         byte i;
         for (i = (ulSize * 8) - 1; !bitRead(code, i) && (i >= 4); --i) {}
         codeType = i + 1;
         if (codeType == 4 && code > 9) { ++codeType; }
+      }
+      if (codeType == 4) {
+        Serial.print(F("Serial read: "));
+        Serial.println(code);
       }
     }
 
@@ -296,7 +299,7 @@ void loop() {
             ledTone(0b010, 0b1111, 1); //green, 1/2 second, once
             code = 0;
             if (SERIAL_ENABLE) {Serial.println(F("DING DONG!")); }
-          } else {
+          } else if (codeType != 255) {
             code = assemblePIN(code);
           }
         } else if (codeType == 8) {
@@ -305,7 +308,7 @@ void loop() {
           codeType == 4;
         }
           
-        if (SERIAL_ENABLE) { Serial.print(F("Weigand code: ")); Serial.print(code, DEC); Serial.print(F(" -- W")); Serial.println(codeType, DEC); }
+        if (SERIAL_ENABLE && code) { Serial.print(F("Code: ")); Serial.print(code, DEC); Serial.print(F(" -- W")); Serial.println(codeType, DEC); }
         
         if(code) {
           int foundSlot = codeMatch(code);
@@ -339,18 +342,19 @@ void loop() {
           mode = code + 1;
           //ledTone(0b111, 0b1, 1); //amber beep, 1/8 second, once
           if (SERIAL_ENABLE) {
-            Serial.print(F("Enter code or scan tag to "));
             switch (code) {
               case 1:
-                Serial.println(F("add..."));
+                Serial.println(F("*******ADD CODE*******"));
                 break;
               case 2:
-                Serial.println(F("delete..."));
+                Serial.println(F("*****DELETE CODE******"));
+                printCodes();
                 break;
               case 3:
-                Serial.println(F("set as configuration code..."));
+                Serial.println(F("***SET CONFIG CODE****"));
                 break;
             }
+            Serial.println(F("Enter code or scan tag... | #: Exit"));
           }
         } else {
           enterNormal(0b111); //amber beep
@@ -528,6 +532,7 @@ void doLEDTone(unsigned long now) {
 }
 
 unsigned long eepromCRC(void) {
+  unsigned long salt=((unsigned long)(ID_1) << 24) + ((unsigned long)(ID_2) << 16) + ((unsigned long)(ID_3) << 8) + ID_4;
   if (USE_CRC) {
     //get CRC of EEPROM (except stored CRC at start)
   
@@ -545,10 +550,10 @@ unsigned long eepromCRC(void) {
       crc = crcTable[(crc ^ (EEPROM[i] >> 4)) & 0x0f] ^ (crc >> 4);
       crc = ~crc;
     }
-    return crc;
+    return crc + salt;
   } else {
     // return static ID value
-    return ((unsigned long)(ID_1) << 24) + ((unsigned long)(ID_2) << 16) + ((unsigned long)(ID_3) << 8) + ID_4;
+    return salt;
   }
 }
 
@@ -650,7 +655,7 @@ void enterConf(byte i, byte m) {
 }
 
 void enterNormal(byte i) {
-  if (SERIAL_ENABLE) { Serial.println(F("**NORMAL OPERATION**")); }
+  if (SERIAL_ENABLE) { Serial.println(F("***NORMAL OPERATION***")); }
   mode = 0;
   unlockEnd = 0;
   pin = 0;
