@@ -1,5 +1,127 @@
 <xml xmlns="http://www.w3.org/1999/xhtml">
-  <block type="component_event" id="853" x="-139" y="-425">
+  <block type="global_declaration" id="k$w%CePvuE::X4=6|mYK" x="-950" y="-651">
+    <field name="NAME">savedaddress</field>
+    <value name="VALUE">
+      <block type="text" id="Yz?I#~ar9t-u@}1!W~b}">
+        <field name="TEXT"></field>
+      </block>
+    </value>
+  </block>
+  <block type="component_event" id=":@ZJ%Q~azzqSx#e%$R~b" x="-956" y="-589">
+    <mutation component_type="Form" instance_name="Screen1" event_name="Initialize"></mutation>
+    <field name="COMPONENT_SELECTOR">Screen1</field>
+    <statement name="DO">
+      <block type="lexical_variable_set" id="?{IJ^]zc9WqXRZ+8%;7v">
+        <field name="VAR">global savedaddress</field>
+        <value name="VALUE">
+          <block type="component_method" id="7:#/!|Z_LNtS;qwpw(3K">
+            <mutation component_type="TinyDB" method_name="GetValue" is_generic="false" instance_name="TinyDB1"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB1</field>
+            <value name="ARG0">
+              <block type="text" id="+`x#z8.9b9CZ$:x6_@j*">
+                <field name="TEXT">btaddress</field>
+              </block>
+            </value>
+            <value name="ARG1">
+              <block type="text" id="@|2/v!N;J{fF9-@{DLGL">
+                <field name="TEXT"></field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <next>
+          <block type="controls_if" id="78uB;1Dk4GP)uTd|`x=z">
+            <value name="IF0">
+              <block type="logic_compare" id="0p2}QCncxj/L~-|OTvsb">
+                <field name="OP">NEQ</field>
+                <value name="A">
+                  <block type="lexical_variable_get" id="Jn|SwU_!oom-[|{9rVjQ">
+                    <field name="VAR">global savedaddress</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="text" id="ng;Ch7AndFvEnhi~*xW-">
+                    <field name="TEXT"></field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <block type="controls_if" id="g/=%q6hDF?En/J@(xdTL">
+                <value name="IF0">
+                  <block type="component_method" id="MLb+c+!{vgz,$xl]$k`G">
+                    <mutation component_type="BluetoothClient" method_name="IsDevicePaired" is_generic="false" instance_name="BluetoothClient1"></mutation>
+                    <field name="COMPONENT_SELECTOR">BluetoothClient1</field>
+                    <value name="ARG0">
+                      <block type="lexical_variable_get" id="w,qb9Vsd,~:!kdVd~?Us">
+                        <field name="VAR">global savedaddress</field>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+                <statement name="DO0">
+                  <block type="component_set_get" id="ENiq3Uc2/UTl}T;ByaMU">
+                    <mutation component_type="ListPicker" set_or_get="set" property_name="Selection" is_generic="false" instance_name="ListPicker1"></mutation>
+                    <field name="COMPONENT_SELECTOR">ListPicker1</field>
+                    <field name="PROP">Selection</field>
+                    <value name="VALUE">
+                      <block type="lexical_variable_get" id="m:.+f,l!-QVfVz6!F^b+">
+                        <field name="VAR">global savedaddress</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="component_set_get" id="^G;[eh:23N3r]a{6VC|P">
+                        <mutation component_type="ListPicker" set_or_get="set" property_name="Text" is_generic="false" instance_name="ListPicker1"></mutation>
+                        <field name="COMPONENT_SELECTOR">ListPicker1</field>
+                        <field name="PROP">Text</field>
+                        <value name="VALUE">
+                          <block type="component_set_get" id="}R`R}8-B+2$D6/6hGIDS" inline="false">
+                            <mutation component_type="ListPicker" set_or_get="get" property_name="Selection" is_generic="false" instance_name="ListPicker1"></mutation>
+                            <field name="COMPONENT_SELECTOR">ListPicker1</field>
+                            <field name="PROP">Selection</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="component_set_get" id="z1;A~-q%rui5IR=sr_hs">
+                            <mutation component_type="Button" set_or_get="set" property_name="Enabled" is_generic="false" instance_name="ButtonConnect"></mutation>
+                            <field name="COMPONENT_SELECTOR">ButtonConnect</field>
+                            <field name="PROP">Enabled</field>
+                            <value name="VALUE">
+                              <block type="logic_boolean" id="2ZCfO+]9=S3N`O/4Vh|{">
+                                <field name="BOOL">TRUE</field>
+                              </block>
+                            </value>
+                            <next>
+                              <block type="controls_eval_but_ignore" id="tb?#:4HK7V,raCstMW/#">
+                                <value name="VALUE">
+                                  <block type="component_method" id="4UY11Gy6Ng7#!Y;Eib#m">
+                                    <mutation component_type="BluetoothClient" method_name="Connect" is_generic="false" instance_name="BluetoothClient1"></mutation>
+                                    <field name="COMPONENT_SELECTOR">BluetoothClient1</field>
+                                    <value name="ARG0">
+                                      <block type="component_set_get" id="Vnd@C(/L!RjjQ`v0C6sq" inline="false">
+                                        <mutation component_type="ListPicker" set_or_get="get" property_name="Text" is_generic="false" instance_name="ListPicker1"></mutation>
+                                        <field name="COMPONENT_SELECTOR">ListPicker1</field>
+                                        <field name="PROP">Text</field>
+                                      </block>
+                                    </value>
+                                  </block>
+                                </value>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </statement>
+              </block>
+            </statement>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="component_event" id="853" x="-130" y="-595">
     <mutation component_type="ListPicker" instance_name="ListPicker1" event_name="BeforePicking"></mutation>
     <field name="COMPONENT_SELECTOR">ListPicker1</field>
     <statement name="DO">
@@ -14,24 +136,107 @@
             <field name="PROP">AddressesAndNames</field>
           </block>
         </value>
+        <next>
+          <block type="component_method" id=",~SSzGe}ovZKt/51O?-%">
+            <mutation component_type="TinyDB" method_name="ClearTag" is_generic="false" instance_name="TinyDB1"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB1</field>
+            <value name="ARG0">
+              <block type="text" id="Jf_.e0^+9CbM+n.59Hi8">
+                <field name="TEXT">btaddress</field>
+              </block>
+            </value>
+          </block>
+        </next>
       </block>
     </statement>
   </block>
-  <block type="component_event" id="861" x="-136" y="-339">
+  <block type="component_event" id="861" x="-130" y="-466">
     <mutation component_type="ListPicker" instance_name="ListPicker1" event_name="AfterPicking"></mutation>
     <field name="COMPONENT_SELECTOR">ListPicker1</field>
     <statement name="DO">
-      <block type="component_set_get" id="v4Q^z9S5Uzbo45h(=PjS">
-        <mutation component_type="ListPicker" set_or_get="set" property_name="Text" is_generic="false" instance_name="ListPicker1"></mutation>
-        <field name="COMPONENT_SELECTOR">ListPicker1</field>
-        <field name="PROP">Text</field>
-        <value name="VALUE">
-          <block type="component_set_get" id="tz?vz@:LC-AG:3LdvyiQ" inline="false">
+      <block type="component_method" id=".etB`Xl1h6)1{JXxKuzo">
+        <mutation component_type="TinyDB" method_name="StoreValue" is_generic="false" instance_name="TinyDB1"></mutation>
+        <field name="COMPONENT_SELECTOR">TinyDB1</field>
+        <value name="ARG0">
+          <block type="text" id="^BiSX(8%:z+fbc#hKq}2">
+            <field name="TEXT">btaddress</field>
+          </block>
+        </value>
+        <value name="ARG1">
+          <block type="component_set_get" id="WSt6YcsE.w=WD9UgQk^]">
             <mutation component_type="ListPicker" set_or_get="get" property_name="Selection" is_generic="false" instance_name="ListPicker1"></mutation>
             <field name="COMPONENT_SELECTOR">ListPicker1</field>
             <field name="PROP">Selection</field>
           </block>
         </value>
+        <next>
+          <block type="controls_if" id="E:~oGeB]5}=Q*d|:WMtT">
+            <mutation else="1"></mutation>
+            <value name="IF0">
+              <block type="component_method" id="L@)fE_!07B5,,sj1n1}@">
+                <mutation component_type="BluetoothClient" method_name="IsDevicePaired" is_generic="false" instance_name="BluetoothClient1"></mutation>
+                <field name="COMPONENT_SELECTOR">BluetoothClient1</field>
+                <value name="ARG0">
+                  <block type="component_set_get" id="wvxa?-VH~j6r+8p$B,9S">
+                    <mutation component_type="ListPicker" set_or_get="get" property_name="Selection" is_generic="false" instance_name="ListPicker1"></mutation>
+                    <field name="COMPONENT_SELECTOR">ListPicker1</field>
+                    <field name="PROP">Selection</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <block type="component_set_get" id="v4Q^z9S5Uzbo45h(=PjS">
+                <mutation component_type="ListPicker" set_or_get="set" property_name="Text" is_generic="false" instance_name="ListPicker1"></mutation>
+                <field name="COMPONENT_SELECTOR">ListPicker1</field>
+                <field name="PROP">Text</field>
+                <value name="VALUE">
+                  <block type="component_set_get" id="tz?vz@:LC-AG:3LdvyiQ" inline="false">
+                    <mutation component_type="ListPicker" set_or_get="get" property_name="Selection" is_generic="false" instance_name="ListPicker1"></mutation>
+                    <field name="COMPONENT_SELECTOR">ListPicker1</field>
+                    <field name="PROP">Selection</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="component_set_get" id="E1!|uQ(X53^4:j5+4U#)">
+                    <mutation component_type="Button" set_or_get="set" property_name="Enabled" is_generic="false" instance_name="ButtonConnect"></mutation>
+                    <field name="COMPONENT_SELECTOR">ButtonConnect</field>
+                    <field name="PROP">Enabled</field>
+                    <value name="VALUE">
+                      <block type="logic_boolean" id=".wgwxrDUF[vPv^yCxldf">
+                        <field name="BOOL">TRUE</field>
+                      </block>
+                    </value>
+                  </block>
+                </next>
+              </block>
+            </statement>
+            <statement name="ELSE">
+              <block type="component_set_get" id="*lD6x_?%j+4_n)Dl;@VL">
+                <mutation component_type="ListPicker" set_or_get="set" property_name="Text" is_generic="false" instance_name="ListPicker1"></mutation>
+                <field name="COMPONENT_SELECTOR">ListPicker1</field>
+                <field name="PROP">Text</field>
+                <value name="VALUE">
+                  <block type="text" id="Xy`@c$k;qQf`3mdDty?J">
+                    <field name="TEXT">Select Bluetooth Device...</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="component_set_get" id="MsnfQT4fKNI4t%xP897`">
+                    <mutation component_type="Button" set_or_get="set" property_name="Enabled" is_generic="false" instance_name="ButtonConnect"></mutation>
+                    <field name="COMPONENT_SELECTOR">ButtonConnect</field>
+                    <field name="PROP">Enabled</field>
+                    <value name="VALUE">
+                      <block type="logic_boolean" id="5b$|kzq/CeDdw70)Lz@p">
+                        <field name="BOOL">FALSE</field>
+                      </block>
+                    </value>
+                  </block>
+                </next>
+              </block>
+            </statement>
+          </block>
+        </next>
       </block>
     </statement>
   </block>
@@ -167,7 +372,7 @@
       </block>
     </statement>
   </block>
-  <block type="component_event" id="|M4EBdJw*chY7j/-mu7]" x="-147" y="-260">
+  <block type="component_event" id="|M4EBdJw*chY7j/-mu7]" x="-132" y="-159">
     <mutation component_type="Button" instance_name="ButtonConnect" event_name="Click"></mutation>
     <field name="COMPONENT_SELECTOR">ButtonConnect</field>
     <statement name="DO">
@@ -342,7 +547,7 @@
       </block>
     </statement>
   </block>
-  <block type="component_event" id="1832" x="-141" y="-76">
+  <block type="component_event" id="1832" x="-136" y="31">
     <mutation component_type="Clock" instance_name="Clock2" event_name="Timer"></mutation>
     <field name="COMPONENT_SELECTOR">Clock2</field>
     <statement name="DO">
@@ -541,7 +746,51 @@
       </block>
     </statement>
   </block>
-  <block type="component_event" id="1507" x="-139" y="118">
+  <block type="component_event" id="cPiu4-N}uu[R${MPfpE." x="1129" y="159">
+    <mutation component_type="Button" instance_name="Buttonstar" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">Buttonstar</field>
+    <statement name="DO">
+      <block type="component_set_get" id="n3U@0D]q~!2jK+3qc8vc">
+        <mutation component_type="TextBox" set_or_get="set" property_name="Text" is_generic="false" instance_name="TextBox1"></mutation>
+        <field name="COMPONENT_SELECTOR">TextBox1</field>
+        <field name="PROP">Text</field>
+        <value name="VALUE">
+          <block type="text" id="DzyB0sw=9w*@Ksy+sD9}">
+            <field name="TEXT"></field>
+          </block>
+        </value>
+        <next>
+          <block type="component_method" id="Tw*P[ayoq#5;br0G7VzL">
+            <mutation component_type="TextBox" method_name="HideKeyboard" is_generic="false" instance_name="TextBox1"></mutation>
+            <field name="COMPONENT_SELECTOR">TextBox1</field>
+            <next>
+              <block type="controls_if" id="((!c+O{c-}UOJLFfX,uK">
+                <value name="IF0">
+                  <block type="component_set_get" id="tdGqxzK7t}{OzoN^:W)R">
+                    <mutation component_type="BluetoothClient" set_or_get="get" property_name="IsConnected" is_generic="false" instance_name="BluetoothClient1"></mutation>
+                    <field name="COMPONENT_SELECTOR">BluetoothClient1</field>
+                    <field name="PROP">IsConnected</field>
+                  </block>
+                </value>
+                <statement name="DO0">
+                  <block type="component_method" id="EU-bgw+.|%3KSzAj3KxK">
+                    <mutation component_type="BluetoothClient" method_name="SendText" is_generic="false" instance_name="BluetoothClient1"></mutation>
+                    <field name="COMPONENT_SELECTOR">BluetoothClient1</field>
+                    <value name="ARG0">
+                      <block type="text" id="VTp(C;7DKGU%^cIX*XBx">
+                        <field name="TEXT">*</field>
+                      </block>
+                    </value>
+                  </block>
+                </statement>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="component_event" id="1507" x="-139" y="229">
     <mutation component_type="Clock" instance_name="Clock1" event_name="Timer"></mutation>
     <field name="COMPONENT_SELECTOR">Clock1</field>
     <statement name="DO">
@@ -626,50 +875,6 @@
             </next>
           </block>
         </statement>
-      </block>
-    </statement>
-  </block>
-  <block type="component_event" id="cPiu4-N}uu[R${MPfpE." x="1129" y="159">
-    <mutation component_type="Button" instance_name="Buttonstar" event_name="Click"></mutation>
-    <field name="COMPONENT_SELECTOR">Buttonstar</field>
-    <statement name="DO">
-      <block type="component_set_get" id="n3U@0D]q~!2jK+3qc8vc">
-        <mutation component_type="TextBox" set_or_get="set" property_name="Text" is_generic="false" instance_name="TextBox1"></mutation>
-        <field name="COMPONENT_SELECTOR">TextBox1</field>
-        <field name="PROP">Text</field>
-        <value name="VALUE">
-          <block type="text" id="DzyB0sw=9w*@Ksy+sD9}">
-            <field name="TEXT"></field>
-          </block>
-        </value>
-        <next>
-          <block type="component_method" id="Tw*P[ayoq#5;br0G7VzL">
-            <mutation component_type="TextBox" method_name="HideKeyboard" is_generic="false" instance_name="TextBox1"></mutation>
-            <field name="COMPONENT_SELECTOR">TextBox1</field>
-            <next>
-              <block type="controls_if" id="((!c+O{c-}UOJLFfX,uK">
-                <value name="IF0">
-                  <block type="component_set_get" id="tdGqxzK7t}{OzoN^:W)R">
-                    <mutation component_type="BluetoothClient" set_or_get="get" property_name="IsConnected" is_generic="false" instance_name="BluetoothClient1"></mutation>
-                    <field name="COMPONENT_SELECTOR">BluetoothClient1</field>
-                    <field name="PROP">IsConnected</field>
-                  </block>
-                </value>
-                <statement name="DO0">
-                  <block type="component_method" id="EU-bgw+.|%3KSzAj3KxK">
-                    <mutation component_type="BluetoothClient" method_name="SendText" is_generic="false" instance_name="BluetoothClient1"></mutation>
-                    <field name="COMPONENT_SELECTOR">BluetoothClient1</field>
-                    <value name="ARG0">
-                      <block type="text" id="VTp(C;7DKGU%^cIX*XBx">
-                        <field name="TEXT">*</field>
-                      </block>
-                    </value>
-                  </block>
-                </statement>
-              </block>
-            </next>
-          </block>
-        </next>
       </block>
     </statement>
   </block>
