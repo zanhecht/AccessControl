@@ -7,7 +7,7 @@
 #define ID_4 '0'
 
 /*
-Zan Hecht - 1 Nov 2018
+Zan Hecht - 12 July 2019
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
@@ -781,7 +781,7 @@ Changelog
 
 Copyright
 ---------
-### COPYRIGHT 2018 ZAN HECHT
+### COPYRIGHT 2019 ZAN HECHT
 ARDUINO ACCESS CONTROL is licensed under a Creative-
 Commons Attribution Share-Alike License.
 http://creativecommons.org/licenses/by-sa/3.0/
