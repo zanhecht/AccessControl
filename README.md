@@ -1,5 +1,5 @@
-## ACCESS CONTROL v0.2.0
-Zan Hecht - 1 November 2018
+## ACCESS CONTROL v1.0.0
+Zan Hecht - 12 July 2019
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
@@ -20,7 +20,8 @@ All functions can be done interactively using the serial port or via
 the keypad. To disable serial functions, change the line in the
 CONFIGURATION section of the code to "#define SERIAL_ENABLE 0".
 
-## INSTRUCTIONS
+INSTRUCTIONS
+------------
 
 The first time the sketch starts up (or after a reinitialization),
 the configuration code will be reset to 123456 on the pin pad (or
@@ -42,10 +43,12 @@ and the maximum lockout time can be changed by defining LOCKOUT_TIME and
 LOCKOUT_MAX in the CONFIGURATION section of the code.
 
 Hit "*" to ring the doorbell. The green light will come on for half a
-second.
+second. You can also wire a physical doorbell button between
+DOORBELL_BUTTON_PIN and ground.
 
 Enter the configuration code or card to enter configuration mode.
-Reader will beep/flash amber twice.
+Reader will beep/flash amber twice. Reader will automatically exit from
+confirmation mode after a set amount of time with no input.
 
 ### Configuration Mode (Two amber flashes, then solid amber)
 
@@ -103,6 +106,17 @@ Reader will beep/flash amber twice.
 > >
 > > If the code/card is invalid or unchanged, the reader will beep/
 > > flash red three times and return to normal mode.
+>
+> #### 0. Delete by slot # (serial only)
+>
+> > This mode can only be entered when connected via serial monitor (or
+> > via bluetooth). Enter a slot number from the list to delete the code.
+> > 
+> > If the slot number is valid, the code will be deleted and a
+> > confirmation will be shown on the serial output. Otherwise, an error
+> > message will be shown.
+> >
+> > This mode does not produce any beeps or flashes on the reader.
 
 ### Reinitialize
  
@@ -118,7 +132,7 @@ Reader will beep/flash amber twice.
 > on power-up and reset the configuration code to 123456 (or whatever
 > value is defined in the CONFIGURATION section of the code).
 
-## COPYRIGHT 2018 ZAN HECHT
+## COPYRIGHT 2019 ZAN HECHT
 ARDUINO ACCESS CONTROL is licensed under a Creative-
 Commons Attribution Share-Alike License.
 http://creativecommons.org/licenses/by-sa/3.0/
