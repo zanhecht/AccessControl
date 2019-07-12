@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////////////////////////
-//                       ACCESS CONTROL v0.2.1                        //
+//                       ACCESS CONTROL v1.0.0                        //
 ////////////////////////////////////////////////////////////////////////
 #define ID_1 'A'
 #define ID_2 'C'
-#define ID_3 '0'
-#define ID_4 '2'
+#define ID_3 '1'
+#define ID_4 '0'
 
 /*
 Zan Hecht - 1 Nov 2018
@@ -51,10 +51,12 @@ and the maximum lockout time can be changed by defining LOCKOUT_TIME and
 LOCKOUT_MAX in the CONFIGURATION section of the code.
 
 Hit "*" to ring the doorbell. The green light will come on for half a
-second.
+second. You can also wire a physical doorbell button between
+DOORBELL_BUTTON_PIN and ground.
 
 Enter the configuration code or card to enter configuration mode.
-Reader will beep/flash amber twice.
+Reader will beep/flash amber twice. Reader will automatically exit from
+confirmation mode after a set amount of time with no input.
 
 ### Configuration Mode (Two amber flashes, then solid amber)
 
@@ -112,6 +114,17 @@ Reader will beep/flash amber twice.
 > >
 > > If the code/card is invalid or unchanged, the reader will beep/
 > > flash red three times and return to normal mode.
+>
+> #### 0. Delete by slot # (serial only)
+>
+> > This mode can only be entered when connected via serial monitor (or
+> > via bluetooth). Enter a slot number from the list to delete the code.
+> > 
+> > If the slot number is valid, the code will be deleted and a
+> > confirmation will be shown on the serial output. Otherwise, an error
+> > message will be shown.
+> >
+> > This mode does not produce any beeps or flashes on the reader.
 
 ### Reinitialize
  
@@ -147,7 +160,8 @@ Reader will beep/flash amber twice.
 #define DOORBELL_PIN 5
 #define BUZZER_PIN 6 //yellow wire
 #define RED_LED_PIN 7 //brown wire
-#define GREEN_LED_PIN 8 //orange wire
+#define GREEN_LED_PIN 10 //orange wire
+#define DOORBELL_BUTTON_PIN 11
 #define INIT_BUTTON_PIN 12
 
 //Time the door is held unlocked, in seconds
@@ -166,8 +180,9 @@ Reader will beep/flash amber twice.
 //Number of digits in PIN codes
 #define PIN_LENGTH 6
 
-//How long before PIN clears
-#define PIN_TIMEOUT 15
+//How long before partially entered PINs time out (in seconds)
+//Config mode will wait 4 times as long before exiting
+#define TIMEOUT_DELAY 15
 
 //Set to 1 to use CRC for EEPROM error checking
 //Set to 0 to use static version ID for for EPPROM error checking
@@ -184,8 +199,8 @@ Reader will beep/flash amber twice.
 WIEGAND wg;
 
 // Global Varibles
-unsigned long unlockEnd=0, lockoutEnd=0, doorBellEnd=0, initEnd=0, pin=0, nextPattern=0, pinClearTime=0;
-byte lockoutTime=LOCKOUT_TIME, pinCount = 0, patternPosition=0b00000001;
+unsigned long unlockEnd=0, lockoutEnd=0, doorBellEnd=0, initEnd=0, pin=0, nextPattern=0, timeoutTime=0, lockoutTime=LOCKOUT_TIME;
+byte pinCount = 0, patternPosition=0b00000001;
 int mode = 0;
 
 byte indicators = 0b000;   // Bit2 = buzzer, Bit1 = green, Bit0 = red
@@ -197,6 +212,7 @@ const int eLength = EEPROM.length();
 
 void setup() {
   //set inputs
+  pinMode(DOORBELL_BUTTON_PIN, INPUT_PULLUP);
   pinMode(INIT_BUTTON_PIN, INPUT_PULLUP);
   
   //set output pins
@@ -239,22 +255,30 @@ void setup() {
 //////////////////////////////////LOOP//////////////////////////////////
 void loop() {
   unsigned long now = millis();
-  
   if (lockoutEnd && !timeElapsed(now, lockoutEnd) ) {
     lockoutEnd = 0; //end lockout
     if(SERIAL_ENABLE) { Serial.println(F("Lockout ended.")); }
   }
 
-  if ((pinClearTime) && (now > pinClearTime)) { //clear pin on timeout
-    assemblePIN(ESC_KEY);
+  if (timeoutTime) { // If PIN reset timer is set
+    if (!mode) { // If in normal mode
+      if (now > (timeoutTime + ((unsigned long)(TIMEOUT_DELAY) * 1000))) { // Pin timeout has passed
+        assemblePIN(ESC_KEY);
+      }
+    } else if (now > (timeoutTime + ((unsigned long)(TIMEOUT_DELAY) * 4000))) { // 4 times pin timeout has passed
+      timeoutTime = 0;
+      enterNormal(0b111); //amber beep
+    }
   }
 
   bool wgAvailable = wg.available();
+  bool doorbellButton = (digitalRead(DOORBELL_BUTTON_PIN) == LOW);
  
-  if ( (wgAvailable || (SERIAL_ENABLE && Serial.available())) && !lockoutEnd ){
-    noInterrupts();
+  if ( (wgAvailable || doorbellButton || (SERIAL_ENABLE && Serial.available())) && !lockoutEnd ){
     unsigned long code = 0;
     byte codeType = 0;
+    
+    noInterrupts();
     
     if (wgAvailable) {
       codeType = wg.getWiegandType();
@@ -290,165 +314,34 @@ void loop() {
         Serial.print(F("Serial read: "));
         Serial.println(code);
       }
+    } else if (doorbellButton) {
+      mode = 0;
+      codeType = 4;
+      code = ENTER_KEY;
     }
 
     switch (mode) {
       case 0:
-        ////////////////////////////
-        //  **NORMAL OPERATION**  //
-        ////////////////////////////
-        if (codeType == 4) { //keypad input
-          if (code == ENTER_KEY) { // (* key)
-            // Trigger doorbell
-            doorBellEnd = now + DOORBELL_DUR;
-            pinCount = 0;
-            pin = 0;
-            ledTone(0b010, 0b1111, 1); //green, 1/2 second, once
-            code = 0;
-            if (SERIAL_ENABLE) {Serial.println(F("DING DONG!")); }
-          } else if (codeType != 255) {
-            code = assemblePIN(code);
-          }
-        } else if (codeType == 8) {
-          assemblePIN((code & 0xf0) >> 4);
-          code = assemblePIN(code & 0x0f);
-          codeType == 4;
-        }
-          
-        if (SERIAL_ENABLE && code) { Serial.print(F("Code: ")); Serial.print(code, DEC); Serial.print(F(" -- W")); Serial.println(codeType, DEC); }
-        
-        if(code) {
-          int foundSlot = codeMatch(code);
-          
-          if (foundSlot) { //code found in EEPROM
-            lockoutTime = LOCKOUT_TIME;
-            if (foundSlot == ulSize) { // First stored code value enters configuration mode
-              enterConf(0b111, 1); //amber beep, mode 1
-            } else { // Other stored codes unlock door
-              unlockEnd = now + (UNLOCK_TIME * 1000);
-              pinCount = 0;
-              pin = 0;
-              ledTone(0b010, 0b11111111, UNLOCK_TIME); //green, 1/2 second, once
-            }
-          } else {
-            // Code not recognized
-            if (SERIAL_ENABLE) { Serial.print(F("Code not recognized. Lockout for ")); Serial.println(lockoutTime); }
-            lockoutEnd = now + (lockoutTime * 1000);
-            ledTone(0b101, 0b10101010, lockoutTime); //red beep, 4Hz, until end of lockout
-            if (lockoutTime < LOCKOUT_MAX) { lockoutTime *= 2; }
-          }
-        }
+        normalOperation(codeType, code, now);
         break;
       case 1:
-        ////////////////////////////
-        // **CONFIGURATION MODE** //
-        ////////////////////////////
-        //   1 Function Select    //
-        ////////////////////////////
-        if ((code >= 1 ) && (code <= 3)) {
-          mode = code + 1;
-          //ledTone(0b111, 0b1, 1); //amber beep, 1/8 second, once
-          if (SERIAL_ENABLE) {
-            switch (code) {
-              case 1:
-                Serial.println(F("*******ADD CODE*******"));
-                break;
-              case 2:
-                Serial.println(F("*****DELETE CODE******"));
-                printCodes();
-                break;
-              case 3:
-                Serial.println(F("***SET CONFIG CODE****"));
-                break;
-            }
-            Serial.println(F("Enter code or scan tag... | #: Exit"));
-          }
-        } else {
-          enterNormal(0b111); //amber beep
-        }
+        confSelect(wgAvailable, code);
         break;
       case 2:
-        ////////////////////////////
-        //         2 Add          //
-        ////////////////////////////
-        if (codeType == 4 && code != ENTER_KEY) { //keypad input
-          code = assemblePIN(code); 
-        } else if (codeType == 8) {
-          assemblePIN((code & 0xf0) >> 4);
-          code = assemblePIN(code & 0x0f);
-          codeType == 4;
-        }
-
-        if (code && code != ENTER_KEY) { //if there is a code
-          if (!codeMatch(code)) { //if the code is new
-            int foundSlot = findSlot();
-            if (foundSlot) { //if there is an open slot
-              EEPROM.put(foundSlot,code);
-              if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.print(F(" stored in slot ")); Serial.println(foundSlot/4); }
-              EEPROM.put(0,eepromCRC());
-              enterConf(0b110, 2); //green beep, mode 2
-            } else { //if memory is full
-              if (SERIAL_ENABLE) { Serial.print(F("Memory full! Delete existing code before adding ")); Serial.println(code); }
-              enterConf(0b101, 1); //red beep, mode 1
-            }
-          } else { //if the code exists
-            if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" already exists!")); }
-            enterConf(0b101, 2); //red beep, mode 2
-          }
-        }
+        addCode(codeType, code);
         break;
       case 3:
-        ////////////////////////////
-        //        3 Delete        //
-        ////////////////////////////
-        if (codeType == 4 && code != ENTER_KEY) { //keypad input
-          code = assemblePIN(code); 
-        } else if (codeType == 8) {
-          assemblePIN((code & 0xf0) >> 4);
-          code = assemblePIN(code & 0x0f);
-          codeType == 4;
-        }
-
-          if (code && code != ENTER_KEY) { //if there is a code
-            int foundSlot = codeMatch(code);
-            
-            if (foundSlot && (foundSlot != ulSize)) { //if the code exists and isn't conf code
-              EEPROM.put(foundSlot, (unsigned long)(0));
-              if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.print(F(" deleted from slot ")); Serial.println(foundSlot/4); }
-              EEPROM.put(0,eepromCRC());
-              enterConf(0b110, 3); //green beep, mode 3
-            } else { //if the code doesn't exist
-              if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" not found!")); }
-              enterConf(0b101, 3); //red beep, mode 3
-            }
-          }
+        deleteCode(codeType, code);
         break;
       case 4:
-        ////////////////////////////
-        //   4 Change Conf Code   //
-        ////////////////////////////
-        if (codeType == 4 && code != ENTER_KEY) { //keypad input
-          code = assemblePIN(code); 
-        } else if (codeType == 8) {
-          assemblePIN((code & 0xf0) >> 4);
-          code = assemblePIN(code & 0x0f);
-          codeType == 4;
-        }
-
-        if (code) { //if there is a code
-          if (!codeMatch(code)) { //if the code is new
-            EEPROM.put(ulSize, code);
-            if (SERIAL_ENABLE) { Serial.print(F("Configuration code set to ")); Serial.println(code);; }
-            EEPROM.put(0,eepromCRC());
-            enterNormal(0b110); //green beep
-          } else { //if the code exists
-            if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" already in use!")); }
-            enterNormal(0b101); //red beep
-          }
-        }
+        setConfCode(codeType, code);
+        break;
+      case 11:
+        deleteBySlot(wgAvailable, codeType, code);
         break;
     }
-  interrupts(); 
+    
+    interrupts(); 
   }
 
   doInit(now); //Detect initialization button
@@ -480,7 +373,7 @@ void loop() {
       case 3: // Delete
         ledTone(0b001, 0b11001100, 255); //red, 2Hz, forever
         break;
-      case 4: // Change configuration code
+      case 4: // Set configuration code
         ledTone(0b011, 0b11001100, 255); //amber, 2Hz, forever
         break;
     }
@@ -489,6 +382,210 @@ void loop() {
   doLEDTone(now); //Process LED and buzzer patterns
 }
 //////////////////////////////END OF LOOP///////////////////////////////
+
+void enterConf(byte i, byte m) {
+  if (m == 0 || m== 1) {
+    m = 1;
+    if (SERIAL_ENABLE) {
+      Serial.println(F("**CONFIGURATION MODE**"));
+      printCodes();
+      Serial.println(F("1: Add | 2: Delete | 3: Set Conf Code | 0: Delete #"));
+      Serial.println(F("#: Exit"));
+    }
+  }
+  pin = 0;
+  pinCount = 0;
+  timeoutTime = millis();
+  mode = m; // Go to input mode
+  ledTone(i, 0b10100, 1); //two flashes, 4 Hz, once
+}
+
+void enterNormal(byte i) {
+  if (SERIAL_ENABLE) { Serial.println(F("***NORMAL OPERATION***")); }
+  mode = 0;
+  unlockEnd = 0;
+  timeoutTime = 0;
+  pin = 0;
+  pinCount = 0;
+  ledTone(i, 0b1010100, 1); //three flashes, 4 Hz, once
+}
+
+/////////////////////////////////MODES//////////////////////////////////
+
+void normalOperation(byte codeType, unsigned long code, unsigned long now) {
+  if (codeType == 4) { //keypad input
+    if (code == ENTER_KEY) { // (* key)
+      // Trigger doorbell
+      doorBellEnd = now + DOORBELL_DUR;
+      pinCount = 0;
+      pin = 0;
+      ledTone(0b010, 0b1111, 1); //green, 1/2 second, once
+      code = 0;
+      if (SERIAL_ENABLE) {Serial.println(F("DING DONG!")); }
+    } else if (codeType != 255) {
+      code = assemblePIN(code);
+    }
+  } else if (codeType == 8) {
+    assemblePIN((code & 0xf0) >> 4);
+    code = assemblePIN(code & 0x0f);
+    codeType == 4;
+  }
+    
+  if (SERIAL_ENABLE && code) { Serial.print(F("Code: ")); Serial.print(code, DEC); Serial.print(F(" -- W")); Serial.println(codeType, DEC); }
+  
+  if(code) {
+    int foundSlot = codeMatch(code);
+    
+    if (foundSlot) { //code found in EEPROM
+      lockoutTime = LOCKOUT_TIME;
+      if (foundSlot == ulSize) { // First stored code value enters configuration mode
+        enterConf(0b111, 1); //amber beep, mode 1
+      } else { // Other stored codes unlock door
+        unlockEnd = now + (UNLOCK_TIME * 1000);
+        pinCount = 0;
+        pin = 0;
+        ledTone(0b010, 0b11111111, UNLOCK_TIME); //green, 1/2 second, once
+      }
+    } else {
+      // Code not recognized
+      if (SERIAL_ENABLE) { Serial.print(F("Code not recognized. Lockout for ")); Serial.println(lockoutTime); }
+      lockoutEnd = now + (lockoutTime * 1000);
+      ledTone(0b101, 0b10101010, lockoutTime); //red beep, 4Hz, until end of lockout
+      if (lockoutTime < LOCKOUT_MAX) { lockoutTime *= 2; }
+    }
+  }
+}
+
+void confSelect(bool wgAvailable, unsigned long code) {
+  if ((code >= 1 ) && (code <= 3)) {
+    timeoutTime = millis();
+    mode = code + 1;
+    //ledTone(0b111, 0b1, 1); //amber beep, 1/8 second, once
+    if (SERIAL_ENABLE) {
+      switch (code) {
+        case 1:
+          Serial.println(F("*******ADD CODE*******"));
+          break;
+        case 2:
+          Serial.println(F("*****DELETE CODE******"));
+          printCodes();
+          break;
+        case 3:
+          Serial.println(F("***SET CONFIG CODE****"));
+          break;
+      }
+      Serial.println(F("Enter code or scan tag... | #: Exit"));
+    }
+  } else if ((SERIAL_ENABLE) && (!wgAvailable) && (code == 0)) { // Only available via serial
+    Serial.println(F("***DELETE BY SLOT #***"));
+    printCodes();
+    Serial.println(F("Enter slot # to delete (0 to exit):"));
+    timeoutTime = millis();
+    mode = 11;
+  } else {
+    enterNormal(0b111); //amber beep
+  }
+}
+
+void addCode(byte codeType, unsigned long code) {
+  if (codeType == 4 && code != ENTER_KEY) { //keypad input
+    code = assemblePIN(code); 
+  } else if (codeType == 8) {
+    assemblePIN((code & 0xf0) >> 4);
+    code = assemblePIN(code & 0x0f);
+    codeType == 4;
+  }
+
+  if (code && code != ENTER_KEY) { //if there is a code
+    if (!codeMatch(code)) { //if the code is new
+      int foundSlot = findSlot();
+      if (foundSlot) { //if there is an open slot
+        EEPROM.put(foundSlot,code);
+        if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.print(F(" stored in slot ")); Serial.println((foundSlot/ulSize) - 1); }
+        if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
+        enterConf(0b110, 2); //green beep, mode 2
+      } else { //if memory is full
+        if (SERIAL_ENABLE) { Serial.print(F("Memory full! Delete existing code before adding ")); Serial.println(code); }
+        enterConf(0b101, 1); //red beep, mode 1
+      }
+    } else { //if the code exists
+      if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" already exists!")); }
+      enterConf(0b101, 2); //red beep, mode 2
+    }
+  }
+}
+
+void deleteCode(byte codeType, unsigned long code) {
+  if (codeType == 4 && code != ENTER_KEY) { //keypad input
+    code = assemblePIN(code); 
+  } else if (codeType == 8) {
+    assemblePIN((code & 0xf0) >> 4);
+    code = assemblePIN(code & 0x0f);
+    codeType == 4;
+  }
+  
+    if (code && code != ENTER_KEY) { //if there is a code
+      int foundSlot = codeMatch(code);
+      
+      if (foundSlot && (foundSlot != ulSize)) { //if the code exists and isn't conf code
+        EEPROM.put(foundSlot, (unsigned long)(0));
+        if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.print(F(" deleted from slot ")); Serial.println((foundSlot/ulSize) - 1); }
+        if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
+        enterConf(0b110, 3); //green beep, mode 3
+      } else { //if the code doesn't exist
+        if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" not found!")); }
+        enterConf(0b101, 3); //red beep, mode 3
+      }
+    }
+}
+
+void setConfCode(byte codeType, unsigned long code) {
+  if (codeType == 4 && code != ENTER_KEY) { //keypad input
+    code = assemblePIN(code); 
+  } else if (codeType == 8) {
+    assemblePIN((code & 0xf0) >> 4);
+    code = assemblePIN(code & 0x0f);
+    codeType == 4;
+  }
+  
+  if (code) { //if there is a code
+    if (!codeMatch(code)) { //if the code is new
+      EEPROM.put(ulSize, code);
+      if (SERIAL_ENABLE) { Serial.print(F("Configuration code set to ")); Serial.println(code);; }
+      EEPROM.put(0,eepromCRC());
+      enterNormal(0b110); //green beep
+    } else { //if the code exists
+      if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" already in use!")); }
+      enterNormal(0b101); //red beep
+    }
+  }
+}
+
+void deleteBySlot(bool wgAvailable, byte codeType, unsigned long code) {
+  if (!wgAvailable) {
+    if ((code == 0) || (codeType == 4 && code == ESC_KEY)) {
+      enterConf(0b101, 1); //red beep, mode 1
+    } else if (code < ((eLength/ulSize)-1)) {
+      int foundSlot = ulSize*(code+1);
+      unsigned long readCode;
+      EEPROM.get(foundSlot, readCode);
+      if (readCode) {
+        EEPROM.put(foundSlot, (unsigned long)(0));
+        if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(readCode); Serial.print(F(" deleted from slot ")); Serial.println(code); }
+        if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
+        printCodes();
+        Serial.println(F("Enter slot # to delete (0 to exit):"));
+        enterConf(0b110, 11); //green beep, mode 3
+      } else {
+        Serial.println("Invalid slot #");
+      }
+    } else {
+      Serial.println("Invalid slot #");
+    }
+  }
+}
+        
+////////////////////////////HELPER FUNCTIONS////////////////////////////
 
 bool timeElapsed(unsigned long startTime, unsigned long endTime) {
   if ( ((long)(endTime - startTime) > 0) ) { return true; } else { return false; }
@@ -577,11 +674,11 @@ int codeMatch(unsigned long code) {
 
 void printCodes(void) {
   if (SERIAL_ENABLE) {
-    for (int i = ulSize; i < eLength; i += ulSize) {
+    for (int i = ulSize * 2; i < eLength; i += ulSize) {
       unsigned long readCode;
       EEPROM.get(i, readCode);
       if (readCode) {
-          Serial.print(i/4); Serial.print(F(". ")); Serial.println(readCode);
+          Serial.print((i-1)/4); Serial.print(F(". ")); Serial.println(readCode);
       }
     }
   }
@@ -615,7 +712,7 @@ int findSlot(void) {
 unsigned long assemblePIN(unsigned long code) {
   if (code == ESC_KEY) { // (# key)
     code = 0;
-    pinClearTime = 0;
+    timeoutTime = 0;
     if (pinCount) {
       if (!mode) {
         enterNormal(0b111); //amber beep
@@ -633,9 +730,7 @@ unsigned long assemblePIN(unsigned long code) {
     }
   } else { // Handle 4-bit PINs
     // ledTone(0b011, 0b1, 1); //amber, 1/8 second, once
-    if(pinCount == 0) { //start reset timer
-      pinClearTime = millis() + (PIN_TIMEOUT * 1000);
-    }
+    timeoutTime = millis();
     pin = (pin * 10) + code;
     pinCount++;
     if (pinCount >= PIN_LENGTH) {
@@ -650,37 +745,17 @@ unsigned long assemblePIN(unsigned long code) {
   return code;
 }
 
-void enterConf(byte i, byte m) {
-  if (m == 0 || m== 1) {
-    m = 1;
-    if (SERIAL_ENABLE) {
-      Serial.println(F("**CONFIGURATION MODE**"));
-      printCodes();
-      Serial.println(F("1: Add | 2: Delete | 3: Change Conf Code | #: Exit"));
-    }
-  }
-  pin = 0;
-  pinCount = 0;
-  mode = m; // Go to input mode
-  ledTone(i, 0b10100, 1); //two flashes, 4 Hz, once
-}
-
-void enterNormal(byte i) {
-  if (SERIAL_ENABLE) { Serial.println(F("***NORMAL OPERATION***")); }
-  mode = 0;
-  unlockEnd = 0;
-  pin = 0;
-  pinCount = 0;
-  ledTone(i, 0b1010100, 1); //three flashes, 4 Hz, once
-}
-
 void doInit(unsigned long now) {
   if (!digitalRead(INIT_BUTTON_PIN)) {
     if (initEnd) {
       if (!timeElapsed(now, initEnd)) { 
-        Serial.println(F("Press RESET button to reinitialize..."));
+        if (SERIAL_ENABLE) { Serial.println(F("Press RESET button to reinitialize...")); }
         EEPROM.put(0, (unsigned long)(0));
         ledTone(0b010, 0b10101010, 255); //green, 4Hz, forever
+      } else if (SERIAL_ENABLE) {
+        Serial.print(F("Keep holding for "));
+        Serial.print((int)((initEnd - now)/1000));
+        Serial.println(F(" seconds to clear EEPROM..."));
       }
     } else {
       mode = 0;
@@ -702,6 +777,7 @@ Changelog
 * 0.1.0 - Initial pre-release
 * 0.2.0 - Implement serial control, CRC error checking
 ** 0.2.1 - Add pin timeout
+* 1.0.0 Added delete by slot #, conf timeout, and doorbell button
 
 Copyright
 ---------
