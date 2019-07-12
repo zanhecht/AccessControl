@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////
-//                       ACCESS CONTROL v0.2.0                        //
+//                       ACCESS CONTROL v0.2.1                        //
 ////////////////////////////////////////////////////////////////////////
 #define ID_1 'A'
 #define ID_2 'C'
@@ -166,6 +166,9 @@ Reader will beep/flash amber twice.
 //Number of digits in PIN codes
 #define PIN_LENGTH 6
 
+//How long before PIN clears
+#define PIN_TIMEOUT 15
+
 //Set to 1 to use CRC for EEPROM error checking
 //Set to 0 to use static version ID for for EPPROM error checking
 #define USE_CRC 0
@@ -181,7 +184,7 @@ Reader will beep/flash amber twice.
 WIEGAND wg;
 
 // Global Varibles
-unsigned long unlockEnd=0, lockoutEnd=0, doorBellEnd=0, initEnd=0, pin=0, nextPattern=0;
+unsigned long unlockEnd=0, lockoutEnd=0, doorBellEnd=0, initEnd=0, pin=0, nextPattern=0, pinClearTime=0;
 byte lockoutTime=LOCKOUT_TIME, pinCount = 0, patternPosition=0b00000001;
 int mode = 0;
 
@@ -242,6 +245,10 @@ void loop() {
     if(SERIAL_ENABLE) { Serial.println(F("Lockout ended.")); }
   }
 
+  if ((pinClearTime) && (now > pinClearTime)) { //clear pin on timeout
+    assemblePIN(ESC_KEY);
+  }
+
   bool wgAvailable = wg.available();
  
   if ( (wgAvailable || (SERIAL_ENABLE && Serial.available())) && !lockoutEnd ){
@@ -252,7 +259,7 @@ void loop() {
     if (wgAvailable) {
       codeType = wg.getWiegandType();
       code = wg.getCode();
-      if (SERIAL_ENABLE && codeType == 4) {
+      if (SERIAL_ENABLE && (codeType == 4 || codeType == 8)) {
         Serial.print(F("Weigand read: "));
         Serial.println(code);
       }
@@ -410,7 +417,7 @@ void loop() {
               if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.print(F(" deleted from slot ")); Serial.println(foundSlot/4); }
               EEPROM.put(0,eepromCRC());
               enterConf(0b110, 3); //green beep, mode 3
-            } else { //if the doesn't exist
+            } else { //if the code doesn't exist
               if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" not found!")); }
               enterConf(0b101, 3); //red beep, mode 3
             }
@@ -608,6 +615,7 @@ int findSlot(void) {
 unsigned long assemblePIN(unsigned long code) {
   if (code == ESC_KEY) { // (# key)
     code = 0;
+    pinClearTime = 0;
     if (pinCount) {
       if (!mode) {
         enterNormal(0b111); //amber beep
@@ -625,6 +633,9 @@ unsigned long assemblePIN(unsigned long code) {
     }
   } else { // Handle 4-bit PINs
     // ledTone(0b011, 0b1, 1); //amber, 1/8 second, once
+    if(pinCount == 0) { //start reset timer
+      pinClearTime = millis() + (PIN_TIMEOUT * 1000);
+    }
     pin = (pin * 10) + code;
     pinCount++;
     if (pinCount >= PIN_LENGTH) {
@@ -685,6 +696,13 @@ void doInit(unsigned long now) {
 }
 
 /*
+Changelog
+---------
+
+* 0.1.0 - Initial pre-release
+* 0.2.0 - Implement serial control, CRC error checking
+** 0.2.1 - Add pin timeout
+
 Copyright
 ---------
 ### COPYRIGHT 2018 ZAN HECHT
