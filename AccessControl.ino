@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////
-//                       ACCESS CONTROL v1.0.0                        //
+//                       ACCESS CONTROL v1.0.1                        //
 ////////////////////////////////////////////////////////////////////////
 #define ID_1 'A'
 #define ID_2 'C'
@@ -775,6 +775,7 @@ Changelog
 * 0.2.0 - Implement serial control, CRC error checking
 ** 0.2.1 - Add pin timeout
 * 1.0.0 Added delete by slot #, conf timeout, and doorbell button
+** 1.0.1 - Refine doorbell button behavior
 
 Copyright
 ---------
