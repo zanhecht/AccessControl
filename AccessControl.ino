@@ -7,7 +7,7 @@
 #define ID_4 '0'
 
 /*
-Zan Hecht - 12 July 2019
+Zan Hecht - 11 Aug 2018
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
@@ -274,7 +274,7 @@ void loop() {
   bool wgAvailable = wg.available();
   bool doorbellButton = (digitalRead(DOORBELL_BUTTON_PIN) == LOW);
  
-  if ( (wgAvailable || doorbellButton || (SERIAL_ENABLE && Serial.available())) && !lockoutEnd ){
+  if ( (wgAvailable || (SERIAL_ENABLE && Serial.available())) && !lockoutEnd ){
     unsigned long code = 0;
     byte codeType = 0;
     
@@ -314,10 +314,6 @@ void loop() {
         Serial.print(F("Serial read: "));
         Serial.println(code);
       }
-    } else if (doorbellButton) {
-      mode = 0;
-      codeType = 4;
-      code = ENTER_KEY;
     }
 
     switch (mode) {
@@ -354,7 +350,7 @@ void loop() {
     unlockEnd = 0;
   }
   
-  if ( doorBellEnd && timeElapsed(now, doorBellEnd) ) {
+  if ( (doorBellEnd && timeElapsed(now, doorBellEnd)) || doorbellButton ) {
     digitalWrite(DOORBELL_PIN, LOW);
   } else {
     digitalWrite(DOORBELL_PIN, HIGH);
@@ -441,6 +437,7 @@ void normalOperation(byte codeType, unsigned long code, unsigned long now) {
       if (foundSlot == ulSize) { // First stored code value enters configuration mode
         enterConf(0b111, 1); //amber beep, mode 1
       } else { // Other stored codes unlock door
+        if (SERIAL_ENABLE) { Serial.println(F("DOOR UNLOCKED"); }
         unlockEnd = now + (UNLOCK_TIME * 1000);
         pinCount = 0;
         pin = 0;
