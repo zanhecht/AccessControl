@@ -1,5 +1,5 @@
-## ACCESS CONTROL v1.0.0
-Zan Hecht - 12 July 2019
+## ACCESS CONTROL v1.0.1
+Zan Hecht - 11 Aug 2018
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
