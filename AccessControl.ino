@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////
-//                       ACCESS CONTROL v1.0.1                        //
+//                       ACCESS CONTROL v1.0.2                        //
 ////////////////////////////////////////////////////////////////////////
 #define ID_1 'A'
 #define ID_2 'C'
@@ -7,7 +7,7 @@
 #define ID_4 '0'
 
 /*
-Zan Hecht - 11 Aug 2018
+Zan Hecht - 20 Aug 2018
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
@@ -284,7 +284,7 @@ void loop() {
       codeType = wg.getWiegandType();
       code = wg.getCode();
       if (SERIAL_ENABLE && (codeType == 4 || codeType == 8)) {
-        Serial.print(F("Weigand read: "));
+        // Serial.print(F("Weigand read: "));
         Serial.println(code);
       }
     } else if (SERIAL_ENABLE && Serial.available()) {
@@ -311,7 +311,7 @@ void loop() {
         if (codeType == 4 && code > 9) { ++codeType; }
       }
       if (codeType == 4) {
-        Serial.print(F("Serial read: "));
+        // Serial.print(F("Serial read: "));
         Serial.println(code);
       }
     }
@@ -346,15 +346,21 @@ void loop() {
   if ( unlockEnd && timeElapsed(now, unlockEnd) ) {
     digitalWrite(DOOR_PIN, LOW);
   } else { 
+    if (unlockEnd) {
+      if (SERIAL_ENABLE) { Serial.println(F("DOOR LOCKED"); }
+      unlockEnd = 0;
+    }
     digitalWrite(DOOR_PIN, HIGH);
-    unlockEnd = 0;
   }
   
   if ( (doorBellEnd && timeElapsed(now, doorBellEnd)) || doorbellButton ) {
     digitalWrite(DOORBELL_PIN, LOW);
   } else {
+    if(doorBellEnd) {
+      doorBellEnd = 0;
+      if (SERIAL_ENABLE) {Serial.println(F("DONG!")); }
+    }
     digitalWrite(DOORBELL_PIN, HIGH);
-    doorBellEnd = 0;
   }
 
   //Set LED overrides for configuration modes
@@ -417,7 +423,7 @@ void normalOperation(byte codeType, unsigned long code, unsigned long now) {
       pin = 0;
       ledTone(0b010, 0b1111, 1); //green, 1/2 second, once
       code = 0;
-      if (SERIAL_ENABLE) {Serial.println(F("DING DONG!")); }
+      if (SERIAL_ENABLE) {Serial.print(F("DING! ")); }
     } else if (codeType != 255) {
       code = assemblePIN(code);
     }
@@ -441,7 +447,7 @@ void normalOperation(byte codeType, unsigned long code, unsigned long now) {
         unlockEnd = now + (UNLOCK_TIME * 1000);
         pinCount = 0;
         pin = 0;
-        ledTone(0b010, 0b11111111, UNLOCK_TIME); //green, 1/2 second, once
+        ledTone(0b010, 0b11111111, UNLOCK_TIME); //green, 1 second, number of unlocked seconds
       }
     } else {
       // Code not recognized
@@ -719,6 +725,7 @@ unsigned long assemblePIN(unsigned long code) {
     } else {
       if (!mode) { //no numbers entered in normal mode
         ledTone(0b0, 0b1, 1); //nothing
+        if (SERIAL_ENABLE) { Serial.println(F("***NORMAL OPERATION***")); }
       } else if (mode == 1) { //no numbers entered in conf
         enterNormal(0b111); //amber beep
       } else { //no numbers entered in add/delete/change mode
@@ -776,6 +783,7 @@ Changelog
 ** 0.2.1 - Add pin timeout
 * 1.0.0 Added delete by slot #, conf timeout, and doorbell button
 ** 1.0.1 - Refine doorbell button behavior
+** 1.0.2 - Refine serial output
 
 Copyright
 ---------
