@@ -347,7 +347,7 @@ void loop() {
     digitalWrite(DOOR_PIN, LOW);
   } else { 
     if (unlockEnd) {
-      if (SERIAL_ENABLE) { Serial.println(F("DOOR LOCKED"); }
+      if (SERIAL_ENABLE) { Serial.println(F("DOOR LOCKED")); }
       unlockEnd = 0;
     }
     digitalWrite(DOOR_PIN, HIGH);
@@ -443,7 +443,7 @@ void normalOperation(byte codeType, unsigned long code, unsigned long now) {
       if (foundSlot == ulSize) { // First stored code value enters configuration mode
         enterConf(0b111, 1); //amber beep, mode 1
       } else { // Other stored codes unlock door
-        if (SERIAL_ENABLE) { Serial.println(F("DOOR UNLOCKED"); }
+        if (SERIAL_ENABLE) { Serial.println(F("DOOR UNLOCKED")); }
         unlockEnd = now + (UNLOCK_TIME * 1000);
         pinCount = 0;
         pin = 0;
