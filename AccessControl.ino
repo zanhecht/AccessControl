@@ -8,7 +8,7 @@
 
 /*
 Zan Hecht - 20 Aug 2018
-http://zansstuff.com/access-control
+https://github.com/zanhecht/AccessControl
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
 https://github.com/zanhecht/Wiegand-Protocol-Library-for-Arduino
