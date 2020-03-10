@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////
-//                       ACCESS CONTROL v1.0.2                        //
+//                       ACCESS CONTROL v1.0.3                        //
 ////////////////////////////////////////////////////////////////////////
 #define ID_1 'A'
 #define ID_2 'C'
@@ -7,8 +7,8 @@
 #define ID_4 '0'
 
 /*
-Zan Hecht - 20 Aug 2018
-https://github.com/zanhecht/AccessControl
+Zan Hecht - 9 March 2020
+http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
 https://github.com/zanhecht/Wiegand-Protocol-Library-for-Arduino
@@ -197,6 +197,9 @@ confirmation mode after a set amount of time with no input.
 #include <Wiegand.h>
 
 WIEGAND wg;
+
+// Assorted function prototypes
+unsigned long assemblePIN(unsigned long code, byte pinLength=PIN_LENGTH);
 
 // Global Varibles
 unsigned long unlockEnd=0, lockoutEnd=0, doorBellEnd=0, initEnd=0, pin=0, nextPattern=0, timeoutTime=0, lockoutTime=LOCKOUT_TIME;
@@ -482,7 +485,7 @@ void confSelect(bool wgAvailable, unsigned long code) {
   } else if ((SERIAL_ENABLE) && (!wgAvailable) && (code == 0)) { // Only available via serial
     Serial.println(F("***DELETE BY SLOT #***"));
     printCodes();
-    Serial.println(F("Enter slot # to delete (0 to exit):"));
+    Serial.println(F("Enter slot # to delete (type '#' to exit):"));
     timeoutTime = millis();
     mode = 11;
   } else {
@@ -566,24 +569,28 @@ void setConfCode(byte codeType, unsigned long code) {
 
 void deleteBySlot(bool wgAvailable, byte codeType, unsigned long code) {
   if (!wgAvailable) {
-    if ((code == 0) || (codeType == 4 && code == ESC_KEY)) {
-      enterConf(0b101, 1); //red beep, mode 1
-    } else if (code < ((eLength/ulSize)-1)) {
-      int foundSlot = ulSize*(code+1);
-      unsigned long readCode;
-      EEPROM.get(foundSlot, readCode);
-      if (readCode) {
-        EEPROM.put(foundSlot, (unsigned long)(0));
-        if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(readCode); Serial.print(F(" deleted from slot ")); Serial.println(code); }
-        if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
-        printCodes();
-        Serial.println(F("Enter slot # to delete (0 to exit):"));
-        enterConf(0b110, 11); //green beep, mode 3
+    code = assemblePIN(code, 2); 
+  
+    if (code) {
+      if (codeType == 4 && code == ESC_KEY) {
+        enterConf(0b101, 1); //red beep, mode 1
+      } else if (code < ((eLength/ulSize)-1)) {
+        int foundSlot = ulSize*(code+1);
+        unsigned long readCode;
+        EEPROM.get(foundSlot, readCode);
+        if (readCode) {
+          EEPROM.put(foundSlot, (unsigned long)(0));
+          if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(readCode); Serial.print(F(" deleted from slot ")); Serial.println(code); }
+          if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
+          printCodes();
+          Serial.println(F("Enter slot # to delete ('#' to exit):"));
+          enterConf(0b110, 11); //green beep, mode 3
+        } else {
+          Serial.println("Invalid slot #");
+        }
       } else {
         Serial.println("Invalid slot #");
       }
-    } else {
-      Serial.println("Invalid slot #");
     }
   }
 }
@@ -681,7 +688,8 @@ void printCodes(void) {
       unsigned long readCode;
       EEPROM.get(i, readCode);
       if (readCode) {
-          Serial.print((i-1)/4); Serial.print(F(". ")); Serial.println(readCode);
+        if ((i-1)/4 < 10) { Serial.print(F("0")); }
+        Serial.print((i-1)/4); Serial.print(F(". ")); Serial.println(readCode);
       }
     }
   }
@@ -712,7 +720,7 @@ int findSlot(void) {
   return 0;
 }
 
-unsigned long assemblePIN(unsigned long code) {
+unsigned long assemblePIN(unsigned long code, byte pinLength=PIN_LENGTH) {
   if (code == ESC_KEY) { // (# key)
     code = 0;
     timeoutTime = 0;
@@ -737,7 +745,7 @@ unsigned long assemblePIN(unsigned long code) {
     timeoutTime = millis();
     pin = (pin * 10) + code;
     pinCount++;
-    if (pinCount >= PIN_LENGTH) {
+    if (pinCount >= pinLength) {
       pinCount = 0;
       code = pin;
       pin = 0;
@@ -784,6 +792,7 @@ Changelog
 * 1.0.0 Added delete by slot #, conf timeout, and doorbell button
 ** 1.0.1 - Refine doorbell button behavior
 ** 1.0.2 - Refine serial output
+** 1.0.3 - Allow delete by slot to work with 2-digit slot numbers
 
 Copyright
 ---------
