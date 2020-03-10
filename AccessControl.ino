@@ -203,7 +203,7 @@ unsigned long assemblePIN(unsigned long code, byte pinLength=PIN_LENGTH);
 
 // Global Varibles
 unsigned long unlockEnd=0, lockoutEnd=0, doorBellEnd=0, initEnd=0, pin=0, nextPattern=0, timeoutTime=0, lockoutTime=LOCKOUT_TIME;
-byte pinCount = 0, patternPosition=0b00000001;
+byte pinCount = 0, patternPosition=0b00000001, serialAvailable = 0;
 int mode = 0;
 
 byte indicators = 0b000;   // Bit2 = buzzer, Bit1 = green, Bit0 = red
@@ -285,13 +285,15 @@ void loop() {
     
     if (wgAvailable) {
       codeType = wg.getWiegandType();
+      serialAvailable = 0;
       code = wg.getCode();
       if (SERIAL_ENABLE && (codeType == 4 || codeType == 8)) {
         // Serial.print(F("Weigand read: "));
         Serial.println(code);
       }
     } else if (SERIAL_ENABLE && Serial.available()) {
-      //Serial console input for debugging
+      //Serial console or bluetooth input
+      serialAvailable = 0;
       while (Serial.available()  > 0) {
         byte serialRead = Serial.read();
         if (serialRead == 42) { // ASCII *
@@ -301,6 +303,7 @@ void loop() {
           code = ESC_KEY;
           codeType = 4;
         } else if (serialRead >= 48 && serialRead <= 57) { // digit
+          serialAvailable++;
           code = (code * 10) + (serialRead - 48);
         }
         interrupts();
@@ -507,7 +510,13 @@ void addCode(byte codeType, unsigned long code) {
       int foundSlot = findSlot();
       if (foundSlot) { //if there is an open slot
         EEPROM.put(foundSlot,code);
-        if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.print(F(" stored in slot ")); Serial.println((foundSlot/ulSize) - 1); }
+        if (SERIAL_ENABLE) { 
+          Serial.print(F("Code ")); 
+          for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
+          Serial.print(code); 
+          Serial.print(F(" stored in slot ")); 
+          Serial.println((foundSlot/ulSize) - 1); 
+        }
         if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
         enterConf(0b110, 2); //green beep, mode 2
       } else { //if memory is full
@@ -515,7 +524,12 @@ void addCode(byte codeType, unsigned long code) {
         enterConf(0b101, 1); //red beep, mode 1
       }
     } else { //if the code exists
-      if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" already exists!")); }
+      if (SERIAL_ENABLE) {
+        Serial.print(F("Code "));
+        for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
+        Serial.print(code);
+        Serial.println(F(" already exists!"));
+      }
       enterConf(0b101, 2); //red beep, mode 2
     }
   }
@@ -535,11 +549,22 @@ void deleteCode(byte codeType, unsigned long code) {
       
       if (foundSlot && (foundSlot != ulSize)) { //if the code exists and isn't conf code
         EEPROM.put(foundSlot, (unsigned long)(0));
-        if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.print(F(" deleted from slot ")); Serial.println((foundSlot/ulSize) - 1); }
+        if (SERIAL_ENABLE) {
+          Serial.print(F("Code "));
+          for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
+          Serial.print(code);
+          Serial.print(F(" deleted from slot "));
+          Serial.println((foundSlot/ulSize) - 1);
+        }
         if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
         enterConf(0b110, 3); //green beep, mode 3
       } else { //if the code doesn't exist
-        if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" not found!")); }
+        if (SERIAL_ENABLE) {
+          Serial.print(F("Code "));
+          for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
+          Serial.print(code);
+          Serial.println(F(" not found!"));
+        }
         enterConf(0b101, 3); //red beep, mode 3
       }
     }
@@ -557,11 +582,20 @@ void setConfCode(byte codeType, unsigned long code) {
   if (code) { //if there is a code
     if (!codeMatch(code)) { //if the code is new
       EEPROM.put(ulSize, code);
-      if (SERIAL_ENABLE) { Serial.print(F("Configuration code set to ")); Serial.println(code);; }
+      if (SERIAL_ENABLE) {
+        Serial.print(F("Configuration code set to "));
+        for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
+        Serial.println(code);
+      }
       EEPROM.put(0,eepromCRC());
       enterNormal(0b110); //green beep
     } else { //if the code exists
-      if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(code); Serial.println(F(" already in use!")); }
+      if (SERIAL_ENABLE) {
+        Serial.print(F("Code "));
+        for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
+        Serial.print(code);
+        Serial.println(F(" already in use!"));
+      }
       enterNormal(0b101); //red beep
     }
   }
@@ -569,27 +603,35 @@ void setConfCode(byte codeType, unsigned long code) {
 
 void deleteBySlot(bool wgAvailable, byte codeType, unsigned long code) {
   if (!wgAvailable) {
-    code = assemblePIN(code, 2); 
+    if (serialAvailable <= 1) {
+      code = assemblePIN(code, 2); 
+    }
   
     if (code) {
-      if (codeType == 4 && code == ESC_KEY) {
-        enterConf(0b101, 1); //red beep, mode 1
-      } else if (code < ((eLength/ulSize)-1)) {
+      if (code < ((eLength/ulSize)-1)) {
         int foundSlot = ulSize*(code+1);
         unsigned long readCode;
         EEPROM.get(foundSlot, readCode);
         if (readCode) {
           EEPROM.put(foundSlot, (unsigned long)(0));
-          if (SERIAL_ENABLE) { Serial.print(F("Code ")); Serial.print(readCode); Serial.print(F(" deleted from slot ")); Serial.println(code); }
+          if (SERIAL_ENABLE) {
+            Serial.print(F("Code "));
+            for(int j = 1; j < (PIN_LENGTH - log10(readCode)); j++) { Serial.print(0); }
+            Serial.print(readCode);
+            Serial.print(F(" deleted from slot "));
+            Serial.println(code);
+          }
           if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
           printCodes();
           Serial.println(F("Enter slot # to delete ('#' to exit):"));
           enterConf(0b110, 11); //green beep, mode 3
         } else {
-          Serial.println("Invalid slot #");
+          Serial.print("Invalid slot #: ");
+          Serial.println(code);
         }
       } else {
-        Serial.println("Invalid slot #");
+        Serial.print("Invalid slot #: ");
+        Serial.println(code);
       }
     }
   }
@@ -688,8 +730,13 @@ void printCodes(void) {
       unsigned long readCode;
       EEPROM.get(i, readCode);
       if (readCode) {
-        if ((i-1)/4 < 10) { Serial.print(F("0")); }
-        Serial.print((i-1)/4); Serial.print(F(". ")); Serial.println(readCode);
+        if ( (i - 1) / ulSize < 10) { Serial.print(F("0")); }
+        Serial.print( (i - 1) / ulSize);
+        Serial.print(F(". "));
+        for(int j = 1; j < (PIN_LENGTH - log10(readCode)); j++) {
+          Serial.print(0);
+        }
+        Serial.println(readCode);
       }
     }
   }
@@ -792,7 +839,7 @@ Changelog
 * 1.0.0 Added delete by slot #, conf timeout, and doorbell button
 ** 1.0.1 - Refine doorbell button behavior
 ** 1.0.2 - Refine serial output
-** 1.0.3 - Allow delete by slot to work with 2-digit slot numbers
+** 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
 
 Copyright
 ---------
