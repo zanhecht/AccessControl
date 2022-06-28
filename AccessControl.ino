@@ -1,62 +1,62 @@
 ////////////////////////////////////////////////////////////////////////
-//                       ACCESS CONTROL v1.0.3                        //
+//                       ACCESS CONTROL v1.1.0                        //
 ////////////////////////////////////////////////////////////////////////
 #define ID_1 'A'
 #define ID_2 'C'
 #define ID_3 '1'
-#define ID_4 '0'
+#define ID_4 '1'
 
 /*
-Zan Hecht - 9 March 2020
+Zan Hecht - 27 June 2022
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
 https://github.com/zanhecht/Wiegand-Protocol-Library-for-Arduino
 (forked from https://github.com/monkeyboard/Wiegand-Protocol-Library-for-Arduino)
 
-This sketch was tested with an HID RPK40 MultiClass reader, but should
-work with any card reader or pin pad that uses the wiegand protocol.
-The reader should have input wires for a buzzer, red LED, and green LED.
-Output to the door lock and doorbell should be via relays or a relay
-shield.
+This sketch was tested with an HID RPK40 MultiClass reader, but should work
+with any card reader or pin pad that uses the wiegand protocol. The reader
+should have input wires for a buzzer, red LED, and green LED. Output to the
+door lock and doorbell should be via relays or a relay shield.
 
-The Wiegand reader should be powered with common ground to the arduino,
-and with DATA0 (typically the green wire) connected to Pin 2 and DATA1
-(typically the white wire) connected to pin 3.
+The Wiegand reader should be powered with common ground to the arduino, and
+with DATA0 (typically the green wire) connected to Pin 2 and DATA1 (typically
+the white wire) connected to pin 3.
 
-All functions can be done interactively using the serial port or via
-the keypad. To disable serial functions, change the line in the
-CONFIGURATION section of the code to "#define SERIAL_ENABLE 0".
+All functions can be done interactively using the serial port or via the
+keypad. To disable serial functions, change the line in the CONFIGURATION
+section of the code to "#define SERIAL_ENABLE 0".
 
 INSTRUCTIONS
 ------------
 
-The first time the sketch starts up (or after a reinitialization),
-the configuration code will be reset to 123456 on the pin pad (or
-whatever value is defined in the CONFIGURATION section of the code).
+The first time the sketch starts up (or after a reinitialization), the
+configuration code will be reset to 123456 on the pin pad (or whatever value
+is defined in the CONFIGURATION section of the code).
 
 ### Normal mode (three amber beeps/flashes, then no light)
-Enter any valid code or card (other than the configuration code/card)
-to unlock the door. To cancel entering a code, hit "#".
+Enter any valid code or card (other than the configuration code/card) to
+unlock the door. To cancel entering a code, hit "#".
 
-If a valid card/code is entered, the green light will turn on and the
-door will unlock for 5 seconds (or as defined by UNLOCK_TIME in the
-CONFIGURATION section of the code).
+If a valid card/code is entered, the green light will turn on and the door
+will unlock for 5 seconds (or as defined by UNLOCK_TIME in the CONFIGURATION
+section of the code).
 
-If an incorrect code/card is entered, the reader will beep and flash
-red for one second. No codes/cards can be entered during this time. If
-an incorrect card/code is entered again, this period will increase to 2
-seconds, then 4 seconds, and then to 8 seconds. The initial lockout time
-and the maximum lockout time can be changed by defining LOCKOUT_TIME and 
-LOCKOUT_MAX in the CONFIGURATION section of the code.
+If an incorrect code/card is entered, the reader will beep and flash red for
+one second. No codes/cards can be entered during this time. If an incorrect
+card/code is entered again, this period will increase to 2 seconds, then 4
+seconds, and then to 8 seconds. The initial lockout time and the maximum
+lockout time can be changed by defining LOCKOUT_TIME and LOCKOUT_MAX in the
+CONFIGURATION section of the code.
 
-Hit "*" to ring the doorbell. The green light will come on for half a
-second. You can also wire a physical doorbell button between
-DOORBELL_BUTTON_PIN and ground.
+Hit "*" to ring the doorbell. The green light will come on for half a second.
+You can also wire a physical doorbell button between DOORBELL_BUTTON_PIN and
+ground.
 
-Enter the configuration code or card to enter configuration mode.
-Reader will beep/flash amber twice. Reader will automatically exit from
-confirmation mode after a set amount of time with no input.
+Enter the configuration code or card to enter configuration mode. The reader
+will beep/flash amber twice. The reader will automatically exit from
+configuration mode after a set amount of time with no input (determined by the
+TIMEOUT_DELAY in the CONFIGURATION section of the code).
 
 ### Configuration Mode (Two amber flashes, then solid amber)
 
@@ -76,69 +76,80 @@ confirmation mode after a set amount of time with no input.
 > 
 > #### 1. Add (flashing green)
 >
-> > Enter a code or scan a card to add it to the unlock codes. Hit "#"
-> > to return to Configuration Mode (reader will beep/flash amber
-> > twice).
+> > Enter a code or scan a card to add it to the unlock codes. Hit "#" to
+> > return to Configuration Mode (reader will beep/flash amber twice).
 > > 
-> > If the code/card is entered successfully, the reader will beep/flash
-> > green twice
+> > If the code/card is entered successfully, the reader will beep/flash green
+> > twice.
 > >
-> > If the code/card is invalid or already exists, the reader will beep/
-> > flash red twice
+> > If the code/card is invalid or already exists, the reader will beep/flash
+> > red twice.
 > > 
-> > Once a code/card is entered, you can enter another code/card, or hit
-> > "#" to return to Configuration Mode.
+> > Once a code/card is entered, you can enter another code/card, or hit "#"
+> > to return to Configuration Mode.
 > 
 > #### 2. Delete (flashing red)
 > 
-> > Enter a code or scan a card to remove it from the unlock codes/
-> > cards. You cannot remove code/card #1 (the configuration code/card).
-> > Hit "#" to return to Configuration Mode (reader will beep/flash amber
-> > twice).
+> > Enter a code or scan a card to remove it from the unlock codes/cards. You
+> > cannot remove code/card #1 (the configuration code/card). Hit "#" to
+> > return to Configuration Mode (reader will beep/flash amber twice).
 > > 
-> > If the code/card is removed successfully, the reader will beep/flash
-> > green twice.
+> > If the code/card is removed successfully, the reader will beep/flash green
+> > twice.
 > > 
-> > If the code/card is invalid or doesn't exist, the reader will beep/
-> > flash red twice.
+> > If the code/card is invalid or doesn't exist, the reader will beep/flash
+> > red twice.
 > > 
-> > Once a code/card is entered, you can enter another code/card, or hit
-> > "#" to return to Configuration Mode.
+> > Once a code/card is entered, you can enter another code/card, or hit "#"
+> > to return to Configuration Mode.
 > 
 > #### 3. Change configuraiton code/card (flashing amber)
 >
 > > Enter a code or scan a card to set it as the configuration code/card.
 > > 
-> > If the code/card is entered successfully, the reader will beep/flash
-> > green three times and return to normal mode.
+> > If the code/card is entered successfully, the reader will beep/flash green
+> > three times and return to normal mode.
 > >
-> > If the code/card is invalid or unchanged, the reader will beep/
-> > flash red three times and return to normal mode.
+> > If the code/card is invalid or unchanged, the reader will beep/flash red
+> > three times and return to normal mode.
 >
-> #### 0. Delete by slot # (serial only)
+> #### 4. Delete by slot # (serial only)
 >
-> > This mode can only be entered when connected via serial monitor (or
-> > via bluetooth). Enter a slot number from the list to delete the code.
+> > This mode can only be entered when connected via serial monitor (or via
+> > bluetooth). Enter a slot number from the list to delete the code.
 > > 
-> > If the slot number is valid, the code will be deleted and a
-> > confirmation will be shown on the serial output. Otherwise, an error
-> > message will be shown.
+> > If the slot number is valid, the code will be deleted and a confirmaion
+> > will be shown on the serial output. Otherwise, an error message will be
+> > shown.
 > >
 > > This mode does not produce any beeps or flashes on the reader.
+>
+> #### 0. Unhide/Hide codes (serial only)
+>
+> > By default, entered codes are not displayed over the serial interface to
+> > prevent a third party from viewing codes as they are entered if you have a
+> > wireless serial interface on your board (if you do not have a wireless
+> > interface and the board is located in a secure area, you can change this
+> > default behavior by setting the HIDE_CODES variable in the CONFIGURATION
+> > section of the code to 0). Entering "0" in configuration mode via the
+> > serial interface will toggle this on or off.
+> >
+> > If HIDE_CODES is set to 1 and this option is toggled to "Unhide", the
+> > reader will continuously flash amber to warn that any entered codes are
+> > potentially visible.
 
 ### Reinitialize
  
-> If you forget your configuration code, or otherwise want to reset all
-> stored codes, short ground to pin 12 (or whatever pin is set to
-> INIT_BUTTON_PIN in the CONFIGURATION section of the code). This can be
-> connected to a button if the location of the arduino is secure, or it
-> can be attached to a key switch.
+> If you forget your configuration code, or otherwise want to reset all stored
+> codes, short ground to pin 12 (or whatever pin is set to INIT_BUTTON_PIN in
+> the CONFIGURATION section of the code). This can be connected to a button if
+> the arduino is in a secure location, or it can be attached to a key switch.
 > 
-> When pin 12 is grounded, the reader will beep and flash amber. After
-> the pin has been grounded for 10 seconds, the flashing will change to
-> green. Reset or power-cycle the arduino, and it will delete all codes
-> on power-up and reset the configuration code to 123456 (or whatever
-> value is defined in the CONFIGURATION section of the code).
+> When pin 12 is grounded, the reader will beep and flash amber. After the pin
+> has been grounded for 10 seconds, the flashing will change to green. Reset
+> or power-cycle the arduino, and it will delete all codes on power-up and
+> reset the configuration code to 123456 (or whatever value is defined in the
+> CONFIGURATION section of the code).
 
 */
 
@@ -153,6 +164,10 @@ confirmation mode after a set amount of time with no input.
 
 // Enable Serial output (0 to disable, 1 to enable)
 #define SERIAL_ENABLE 1
+
+// Hide codes by default in serial output to prevent sniffing
+// when using bluetooth (0 to disable masking, 1 to enable masking)
+#define HIDE_CODES 1
 
 //Define IO pins for door striker, led, buzzer, and doorbell.
 //DATA0 is Pin 2 (green wire) and DATA1 is pin 3 (white wire).
@@ -203,7 +218,7 @@ unsigned long assemblePIN(unsigned long code, byte pinLength=PIN_LENGTH);
 
 // Global Varibles
 unsigned long unlockEnd=0, lockoutEnd=0, doorBellEnd=0, initEnd=0, pin=0, nextPattern=0, timeoutTime=0, lockoutTime=LOCKOUT_TIME;
-byte pinCount = 0, patternPosition=0b00000001, serialAvailable = 0;
+byte pinCount = 0, patternPosition=0b00000001, serialAvailable = 0, hideCodes = HIDE_CODES;
 int mode = 0;
 
 byte indicators = 0b000;   // Bit2 = buzzer, Bit1 = green, Bit0 = red
@@ -288,8 +303,12 @@ void loop() {
       serialAvailable = 0;
       code = wg.getCode();
       if (SERIAL_ENABLE && (codeType == 4 || codeType == 8)) {
-        // Serial.print(F("Weigand read: "));
-        Serial.println(code);
+        if (hideCodes) {
+          Serial.print(F("W"));
+          Serial.println(codeType);
+        } else {
+          Serial.println(code);
+        }
       }
     } else if (SERIAL_ENABLE && Serial.available()) {
       //Serial console or bluetooth input
@@ -338,7 +357,7 @@ void loop() {
       case 4:
         setConfCode(codeType, code);
         break;
-      case 11:
+      case 44:
         deleteBySlot(wgAvailable, codeType, code);
         break;
     }
@@ -370,7 +389,9 @@ void loop() {
   }
 
   //Set LED overrides for configuration modes
-  if (mode && repeat != 1) {
+  if (HIDE_CODES == 1 && hideCodes == 0) { //Hide Codes temporarily off
+    ledTone(0b011, 0b01010101, 255); //amber, 4Hz, forever
+  } else if (mode && repeat != 1) {
     switch (mode) {
       case 1: // Configuration mode
         ledTone(0b011, 0b11111111, 255); //amber, steady, forever
@@ -397,8 +418,13 @@ void enterConf(byte i, byte m) {
     if (SERIAL_ENABLE) {
       Serial.println(F("**CONFIGURATION MODE**"));
       printCodes();
-      Serial.println(F("1: Add | 2: Delete | 3: Set Conf Code | 0: Delete #"));
-      Serial.println(F("#: Exit"));
+      Serial.println(F("1: Add | 2: Delete | 3: Set Conf Code | 4: Delete #"));
+      if (hideCodes) {
+        Serial.print(F("0: Unhide codes"));
+      } else {
+        Serial.print(F("0: Hide codes"));
+      }
+      Serial.println(F(" | #: Exit"));
     }
   }
   pin = 0;
@@ -439,7 +465,15 @@ void normalOperation(byte codeType, unsigned long code, unsigned long now) {
     codeType == 4;
   }
     
-  if (SERIAL_ENABLE && code) { Serial.print(F("Code: ")); Serial.print(code, DEC); Serial.print(F(" -- W")); Serial.println(codeType, DEC); }
+  if (SERIAL_ENABLE && code) { 
+    Serial.print(F("Code: "));
+    formatCode(code, codeType);
+    if (hideCodes) {
+      Serial.println("");
+    } else {
+      Serial.print(F(" -- W")); Serial.println(codeType, DEC);
+    }
+  }
   
   if(code) {
     int foundSlot = codeMatch(code);
@@ -485,12 +519,15 @@ void confSelect(bool wgAvailable, unsigned long code) {
       }
       Serial.println(F("Enter code or scan tag... | #: Exit"));
     }
-  } else if ((SERIAL_ENABLE) && (!wgAvailable) && (code == 0)) { // Only available via serial
+  } else if ((SERIAL_ENABLE) && (!wgAvailable) && (code == 4)) { // Only available via serial
     Serial.println(F("***DELETE BY SLOT #***"));
     printCodes();
     Serial.println(F("Enter slot # to delete (type '#' to exit):"));
     timeoutTime = millis();
-    mode = 11;
+    mode = 44;
+  } else if ((SERIAL_ENABLE) && (!wgAvailable) && (code == 0)) { // Only available via serial
+    hideCodes = 1 - hideCodes;
+    enterConf(0b111, 1); //amber beep, mode 1
   } else {
     enterNormal(0b111); //amber beep
   }
@@ -511,23 +548,21 @@ void addCode(byte codeType, unsigned long code) {
       if (foundSlot) { //if there is an open slot
         EEPROM.put(foundSlot,code);
         if (SERIAL_ENABLE) { 
-          Serial.print(F("Code ")); 
-          for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
-          Serial.print(code); 
+          Serial.print(F("Code "));
+          formatCode(code, codeType);
           Serial.print(F(" stored in slot ")); 
           Serial.println((foundSlot/ulSize) - 1); 
         }
         if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
         enterConf(0b110, 2); //green beep, mode 2
       } else { //if memory is full
-        if (SERIAL_ENABLE) { Serial.print(F("Memory full! Delete existing code before adding ")); Serial.println(code); }
+        if (SERIAL_ENABLE) { Serial.print(F("Memory full! Delete existing code first."));}
         enterConf(0b101, 1); //red beep, mode 1
       }
     } else { //if the code exists
       if (SERIAL_ENABLE) {
         Serial.print(F("Code "));
-        for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
-        Serial.print(code);
+        formatCode(code, codeType);
         Serial.println(F(" already exists!"));
       }
       enterConf(0b101, 2); //red beep, mode 2
@@ -551,8 +586,7 @@ void deleteCode(byte codeType, unsigned long code) {
         EEPROM.put(foundSlot, (unsigned long)(0));
         if (SERIAL_ENABLE) {
           Serial.print(F("Code "));
-          for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
-          Serial.print(code);
+          formatCode(code, codeType);
           Serial.print(F(" deleted from slot "));
           Serial.println((foundSlot/ulSize) - 1);
         }
@@ -561,8 +595,7 @@ void deleteCode(byte codeType, unsigned long code) {
       } else { //if the code doesn't exist
         if (SERIAL_ENABLE) {
           Serial.print(F("Code "));
-          for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
-          Serial.print(code);
+          formatCode(code, codeType);
           Serial.println(F(" not found!"));
         }
         enterConf(0b101, 3); //red beep, mode 3
@@ -584,16 +617,15 @@ void setConfCode(byte codeType, unsigned long code) {
       EEPROM.put(ulSize, code);
       if (SERIAL_ENABLE) {
         Serial.print(F("Configuration code set to "));
-        for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
-        Serial.println(code);
+        formatCode(code, codeType);
+        Serial.println(F("."));
       }
       EEPROM.put(0,eepromCRC());
       enterNormal(0b110); //green beep
     } else { //if the code exists
       if (SERIAL_ENABLE) {
         Serial.print(F("Code "));
-        for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
-        Serial.print(code);
+        formatCode(code, codeType);
         Serial.println(F(" already in use!"));
       }
       enterNormal(0b101); //red beep
@@ -616,15 +648,14 @@ void deleteBySlot(bool wgAvailable, byte codeType, unsigned long code) {
           EEPROM.put(foundSlot, (unsigned long)(0));
           if (SERIAL_ENABLE) {
             Serial.print(F("Code "));
-            for(int j = 1; j < (PIN_LENGTH - log10(readCode)); j++) { Serial.print(0); }
-            Serial.print(readCode);
+            formatCode(readCode, 0);
             Serial.print(F(" deleted from slot "));
             Serial.println(code);
           }
           if (USE_CRC) { EEPROM.put(0,eepromCRC()); }
           printCodes();
           Serial.println(F("Enter slot # to delete ('#' to exit):"));
-          enterConf(0b110, 11); //green beep, mode 3
+          enterConf(0b110, 44); //green beep, mode 3
         } else {
           Serial.print("Invalid slot #: ");
           Serial.println(code);
@@ -634,6 +665,8 @@ void deleteBySlot(bool wgAvailable, byte codeType, unsigned long code) {
         Serial.println(code);
       }
     }
+  } else {
+    assemblePIN(ESC_KEY);
   }
 }
         
@@ -688,7 +721,7 @@ void doLEDTone(unsigned long now) {
 }
 
 unsigned long eepromCRC(void) {
-  unsigned long salt=((unsigned long)(ID_1) << 24) + ((unsigned long)(ID_2) << 16) + ((unsigned long)(ID_3) << 8) + ID_4;
+  unsigned long salt=((unsigned long)(ID_1) << 24) + ((unsigned long)(ID_2) << 16) + ((unsigned long)(ID_3) << 8);
   if (USE_CRC) {
     //get CRC of EEPROM (except stored CRC at start)
   
@@ -733,10 +766,8 @@ void printCodes(void) {
         if ( (i - 1) / ulSize < 10) { Serial.print(F("0")); }
         Serial.print( (i - 1) / ulSize);
         Serial.print(F(". "));
-        for(int j = 1; j < (PIN_LENGTH - log10(readCode)); j++) {
-          Serial.print(0);
-        }
-        Serial.println(readCode);
+        formatCode(readCode, 0);
+        Serial.println(F(""));
       }
     }
   }
@@ -804,6 +835,28 @@ unsigned long assemblePIN(unsigned long code, byte pinLength=PIN_LENGTH) {
   return code;
 }
 
+int formatCode(unsigned long code, int type) {
+  if (hideCodes) {
+    if (type == 0) {
+      int bits = int(ceil(log(code)/log(2)));
+      if (bits > 0) {
+        if (log10(code) < PIN_LENGTH) {
+          type = 4;
+        } else if (bits < 24) {
+          type = 26;
+        } else {
+          type = 34;
+        }
+      }
+    }
+    Serial.print(F("type W"));
+    Serial.print(type);
+  } else {
+    for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
+    Serial.print(code);
+  }
+}
+
 void doInit(unsigned long now) {
   if (!digitalRead(INIT_BUTTON_PIN)) {
     if (initEnd) {
@@ -833,46 +886,46 @@ void doInit(unsigned long now) {
 Changelog
 ---------
 
-* 0.1.0 - Initial pre-release
-* 0.2.0 - Implement serial control, CRC error checking
-** 0.2.1 - Add pin timeout
+** 0.1.0 - Initial pre-release
+** 0.2.0 - Implement serial control, CRC error checking
+*** 0.2.1 - Add pin timeout
 * 1.0.0 Added delete by slot #, conf timeout, and doorbell button
-** 1.0.1 - Refine doorbell button behavior
-** 1.0.2 - Refine serial output
-** 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
+*** 1.0.1 - Refine doorbell button behavior
+*** 1.0.2 - Refine serial output
+*** 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
+** 1.1.0 - "Hide codes in serial output" option added to prevent bluetooth sniffing
 
 Copyright
 ---------
-### COPYRIGHT 2019 ZAN HECHT
-ARDUINO ACCESS CONTROL is licensed under a Creative-
-Commons Attribution Share-Alike License.
+### COPYRIGHT 2022 ZAN HECHT
+ARDUINO ACCESS CONTROL is licensed under a
+Creative-Commons Attribution Share-Alike License.
 http://creativecommons.org/licenses/by-sa/3.0/
 You are free:
 to Share — to copy, distribute and transmit the work
 to Remix — to adapt the work
 to make commercial use of the work
 Under the following conditions:
-* Attribution — You must attribute the work in the manner specified
-by the author or licensor (but not in any way that suggests that
-they endorse you or your use of the work).
-* Share Alike — If you alter, transform, or build upon this work,
-you may distribute the resulting work only under the same or similar
-license to this one.
+* Attribution — You must attribute the work in the manner specified by the
+author or licensor (but not in any way that suggests that they endorse you or
+your use of the work).
+* Share Alike — If you alter, transform, or build upon this work, you may
+distribute the resulting work only under the same or similar license to this
+one.
 With the understanding that:
-* Waiver — Any of the above conditions can be waived if you get
-permission from the copyright holder.
-* Public Domain — Where the work or any of its elements is in the
-public domain under applicable law, that status is in no way
-affected by the license.
-* Other Rights — In no way are any of the following rights affected
-by the license:
-* Your fair dealing or fair use rights, or other applicable
-copyright exceptions and limitations;
+* Waiver — Any of the above conditions can be waived if you get permission
+from the copyright holder.
+* Public Domain — Where the work or any of its elements is in the public
+domain under applicable law, that status is in no way affected by the license.
+* Other Rights — In no way are any of the following rights affected by the
+license:
+* Your fair dealing or fair use rights, or other applicable copyright
+exceptions and limitations;
 * The author's moral rights;
-* Rights other persons may have either in the work itself or in
-how the work is used, such as publicity or privacy rights.
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the full
-text of the Create-Commons license linked to above for more details.
+* Rights other persons may have either in the work itself or in how the work
+is used, such as publicity or privacy rights.
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the full text of the Create-Commons license
+linked to above for more details.
 */
