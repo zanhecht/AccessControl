@@ -886,14 +886,14 @@ void doInit(unsigned long now) {
 Changelog
 ---------
 
-** 0.1.0 - Initial pre-release
-** 0.2.0 - Implement serial control, CRC error checking
-*** 0.2.1 - Add pin timeout
+* 0.1.0 - Initial pre-release
+* 0.2.0 - Implement serial control, CRC error checking
+   * 0.2.1 - Add pin timeout
 * 1.0.0 Added delete by slot #, conf timeout, and doorbell button
-*** 1.0.1 - Refine doorbell button behavior
-*** 1.0.2 - Refine serial output
-*** 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
-** 1.1.0 - "Hide codes in serial output" option added to prevent bluetooth sniffing
+   * 1.0.1 - Refine doorbell button behavior
+   * 1.0.2 - Refine serial output
+   * 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
+* 1.1.0 - "Hide codes in serial output" option added to prevent bluetooth sniffing
 
 Copyright
 ---------
