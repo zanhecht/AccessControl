@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////
-//                       ACCESS CONTROL v1.1.0                        //
+//                       ACCESS CONTROL v1.1.1                        //
 ////////////////////////////////////////////////////////////////////////
 #define ID_1 'A'
 #define ID_2 'C'
@@ -7,7 +7,7 @@
 #define ID_4 '1'
 
 /*
-Zan Hecht - 27 June 2022
+Zan Hecht - 29 January 2025
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
@@ -103,7 +103,7 @@ TIMEOUT_DELAY in the CONFIGURATION section of the code).
 > > Once a code/card is entered, you can enter another code/card, or hit "#"
 > > to return to Configuration Mode.
 > 
-> #### 3. Change configuraiton code/card (flashing amber)
+> #### 3. Change configuration code/card (flashing amber)
 >
 > > Enter a code or scan a card to set it as the configuration code/card.
 > > 
@@ -118,7 +118,7 @@ TIMEOUT_DELAY in the CONFIGURATION section of the code).
 > > This mode can only be entered when connected via serial monitor (or via
 > > bluetooth). Enter a slot number from the list to delete the code.
 > > 
-> > If the slot number is valid, the code will be deleted and a confirmaion
+> > If the slot number is valid, the code will be deleted and a confirmation
 > > will be shown on the serial output. Otherwise, an error message will be
 > > shown.
 > >
@@ -273,7 +273,7 @@ void setup() {
 //////////////////////////////////LOOP//////////////////////////////////
 void loop() {
   unsigned long now = millis();
-  if (lockoutEnd && !timeElapsed(now, lockoutEnd) ) {
+  if (lockoutEnd && (now > lockoutEnd) ) {
     lockoutEnd = 0; //end lockout
     if(SERIAL_ENABLE) { Serial.println(F("Lockout ended.")); }
   }
@@ -368,7 +368,7 @@ void loop() {
   doInit(now); //Detect initialization button
 
   // Write to output pins
-  if ( unlockEnd && timeElapsed(now, unlockEnd) ) {
+  if ( unlockEnd && (now < unlockEnd) ) {
     digitalWrite(DOOR_PIN, LOW);
   } else { 
     if (unlockEnd) {
@@ -378,7 +378,7 @@ void loop() {
     digitalWrite(DOOR_PIN, HIGH);
   }
   
-  if ( (doorBellEnd && timeElapsed(now, doorBellEnd)) || doorbellButton ) {
+  if ( (doorBellEnd && (now < doorBellEnd)) || doorbellButton ) {
     digitalWrite(DOORBELL_PIN, LOW);
   } else {
     if(doorBellEnd) {
@@ -672,10 +672,6 @@ void deleteBySlot(bool wgAvailable, byte codeType, unsigned long code) {
         
 ////////////////////////////HELPER FUNCTIONS////////////////////////////
 
-bool timeElapsed(unsigned long startTime, unsigned long endTime) {
-  if ( ((long)(endTime - startTime) > 0) ) { return true; } else { return false; }
-}
-
 void ledTone(byte i, byte p, byte r) {
   if (r != 255) { //Reset pattern if it's not an infinite loop
     patternPosition = 0b00000001;
@@ -690,7 +686,7 @@ void doLEDTone(unsigned long now) {
   byte r=HIGH, g=HIGH, b=HIGH;
 
   if(repeat) {
-    if (nextPattern && !timeElapsed(now, nextPattern)) {
+    if (nextPattern && (now > nextPattern)) {
       if (patternPosition == 0b10000000 || !patternPosition) {
         patternPosition = 0b00000001;
         if (repeat != 255) { repeat--; } // 255 represents infinite loop
@@ -860,7 +856,7 @@ int formatCode(unsigned long code, int type) {
 void doInit(unsigned long now) {
   if (!digitalRead(INIT_BUTTON_PIN)) {
     if (initEnd) {
-      if (!timeElapsed(now, initEnd)) { 
+      if (now > initEnd) { 
         if (SERIAL_ENABLE) { Serial.println(F("Press RESET button to reinitialize...")); }
         EEPROM.put(0, (unsigned long)(0));
         ledTone(0b010, 0b10101010, 255); //green, 4Hz, forever
@@ -894,10 +890,11 @@ Changelog
    * 1.0.2 - Refine serial output
    * 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
 * 1.1.0 - "Hide codes in serial output" option added to prevent bluetooth sniffing
+   * 1.1.1 - Get rid of timeElapsed() function
 
 Copyright
 ---------
-### COPYRIGHT 2022 ZAN HECHT
+### COPYRIGHT 2025 ZAN HECHT
 ARDUINO ACCESS CONTROL is licensed under a
 Creative-Commons Attribution Share-Alike License.
 http://creativecommons.org/licenses/by-sa/3.0/
