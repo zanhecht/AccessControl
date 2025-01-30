@@ -1,5 +1,5 @@
-## ACCESS CONTROL v1.1.0
-Zan Hecht - 27 June 2022
+## ACCESS CONTROL v1.1.1
+Zan Hecht - 29 January 2025
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
@@ -95,7 +95,7 @@ TIMEOUT_DELAY in the CONFIGURATION section of the code).
 > > Once a code/card is entered, you can enter another code/card, or hit "#"
 > > to return to Configuration Mode.
 > 
-> #### 3. Change configuraiton code/card (flashing amber)
+> #### 3. Change configuration code/card (flashing amber)
 >
 > > Enter a code or scan a card to set it as the configuration code/card.
 > > 
@@ -110,7 +110,7 @@ TIMEOUT_DELAY in the CONFIGURATION section of the code).
 > > This mode can only be entered when connected via serial monitor (or via
 > > bluetooth). Enter a slot number from the list to delete the code.
 > > 
-> > If the slot number is valid, the code will be deleted and a confirmaion
+> > If the slot number is valid, the code will be deleted and a confirmation
 > > will be shown on the serial output. Otherwise, an error message will be
 > > shown.
 > >
@@ -154,10 +154,11 @@ Changelog
    * 1.0.2 - Refine serial output
    * 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
 * 1.1.0 - "Hide codes in serial output" option added to prevent bluetooth sniffing
+   * 1.1.1 - Get rid of timeElapsed() function
 
 Copyright
 ---------
-### COPYRIGHT 2022 ZAN HECHT
+### COPYRIGHT 2025 ZAN HECHT
 ARDUINO ACCESS CONTROL is licensed under a
 Creative-Commons Attribution Share-Alike License.
 http://creativecommons.org/licenses/by-sa/3.0/
