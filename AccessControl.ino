@@ -330,14 +330,28 @@ void loop() {
 				noInterrupts();
 			}
 			if (!codeType) { //determine input size if not overridden
-				byte i;
-				for (i = (ulSize * 8) - 1; !bitRead(code, i) && (i >= 4); --i) {}
-				codeType = i + 1;
-				if (codeType == 4 && code > 9) { ++codeType; }
+				if (serialAvailable <= PIN_LENGTH) {
+					codeType = 4;
+				} else if (serialAvailable <= 8) {
+					codeType = 26;
+				} else {
+					codeType = 34;
+				}
 			}
 			if (codeType == 4) {
 				// Serial.print(F("Serial read: "));
 				Serial.println(code);
+			} else if (codeType == 26 || codeType == 34) {
+				//recombine codes split into facility code and ID number
+				unsigned long top = ((code / 100000);
+				unsigned long bottom = code % 100000;
+				if (top <= 0xFFFF && bottom <= 0xFFFF) {
+					code = (top << 16) | bottom;
+				} else { //Not valid facility code + ID
+					byte i;
+					for (i = (ulSize * 8) - 1; !bitRead(code, i) && (i >= 4); --i) {}
+					codeType = i + 1;
+				}
 			}
 		}
 
@@ -456,13 +470,15 @@ void normalOperation(byte codeType, unsigned long code, unsigned long now) {
 			ledTone(0b010, 0b1111, 1); //green, 1/2 second, once
 			code = 0;
 			if (SERIAL_ENABLE) {Serial.print(F("DING! ")); }
-		} else if (codeType != 255) {
+		} else {
 			code = assemblePIN(code);
 		}
 	} else if (codeType == 8) {
+		codeType == 4;
 		assemblePIN((code & 0xf0) >> 4);
 		code = assemblePIN(code & 0x0f);
-		codeType == 4;
+	} else if (codeType == 24 || codeType == 32) {
+		codeType += 2;
 	}
 		
 	if (SERIAL_ENABLE && code) { 
@@ -537,9 +553,9 @@ void addCode(byte codeType, unsigned long code) {
 	if (codeType == 4 && code != ENTER_KEY) { //keypad input
 		code = assemblePIN(code); 
 	} else if (codeType == 8) {
+		codeType == 4;
 		assemblePIN((code & 0xf0) >> 4);
 		code = assemblePIN(code & 0x0f);
-		codeType == 4;
 	}
 
 	if (code && code != ENTER_KEY) { //if there is a code
@@ -574,9 +590,9 @@ void deleteCode(byte codeType, unsigned long code) {
 	if (codeType == 4 && code != ENTER_KEY) { //keypad input
 		code = assemblePIN(code); 
 	} else if (codeType == 8) {
+		codeType == 4;
 		assemblePIN((code & 0xf0) >> 4);
 		code = assemblePIN(code & 0x0f);
-		codeType == 4;
 	}
 	
 		if (code && code != ENTER_KEY) { //if there is a code
@@ -607,9 +623,9 @@ void setConfCode(byte codeType, unsigned long code) {
 	if (codeType == 4 && code != ENTER_KEY) { //keypad input
 		code = assemblePIN(code); 
 	} else if (codeType == 8) {
+		codeType == 4;
 		assemblePIN((code & 0xf0) >> 4);
 		code = assemblePIN(code & 0x0f);
-		codeType == 4;
 	}
 	
 	if (code) { //if there is a code
@@ -832,24 +848,29 @@ unsigned long assemblePIN(unsigned long code, byte pinLength=PIN_LENGTH) {
 }
 
 int formatCode(unsigned long code, int type) {
-	if (hideCodes) {
-		if (type == 0) {
-			int bits = int(ceil(log(code)/log(2)));
-			if (bits > 0) {
-				if (log10(code) < PIN_LENGTH) {
-					type = 4;
-				} else if (bits < 24) {
-					type = 26;
-				} else {
-					type = 34;
-				}
+	if (type == 0) {
+		int bits = int(ceil(log(code)/log(2)));
+		if (bits > 0) {
+			if (log10(code) < PIN_LENGTH) {
+				type = 4;
+			} else if (bits < 24) {
+				type = 26;
+			} else {
+				type = 34;
 			}
 		}
+	}
+	if (hideCodes) {
 		Serial.print(F("type W"));
 		Serial.print(type);
 	} else {
-		for(int j = 1; j < (PIN_LENGTH - log10(code)); j++) { Serial.print(0); }
-		Serial.print(code);
+		char codeStr[11];
+		if (type == 26 || type == 34) {
+			sprintf(codeStr, "%0*u%05u", (type == 26 ? 3 : 5), (unsigned int)(code >> 16), (unsigned int)(code & 0xFFFF));
+		} else {
+			sprintf(codeStr, "%0*lu", (type == 4 ? PIN_LENGTH : 10), code);
+		}
+		Serial.print(codeStr);
 	}
 }
 
@@ -890,7 +911,7 @@ Changelog
    * 1.0.2 - Refine serial output
    * 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
 * 1.1.0 - "Hide codes in serial output" option added to prevent bluetooth sniffing
-   * 1.1.1 - Get rid of timeElapsed() function
+   * 1.1.1 - Get rid of timeElapsed() function, format codes as facility+id
 
 Copyright
 ---------
