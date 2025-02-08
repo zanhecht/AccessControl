@@ -851,15 +851,10 @@ unsigned long assemblePIN(unsigned long code, byte pinLength=PIN_LENGTH) {
 
 int formatCode(unsigned long code, int type) {
 	if (type == 0) {
-		int bits = int(ceil(log(code)/log(2)));
-		if (bits > 0) {
-			if (log10(code) < PIN_LENGTH) {
-				type = 4;
-			} else if (bits < 24) {
-				type = 26;
-			} else {
-				type = 34;
-			}
+		if ( (code == 0) || (int(log10(code) + 1) <= PIN_LENGTH) ) {
+			type = 4;
+		} else {
+			type = ((int(log(code)/log(2)) + 1) <= 24) ? 26 : 34;
 		}
 	}
 	if (hideCodes) {
