@@ -1,5 +1,5 @@
-## ACCESS CONTROL v1.1.1
-Zan Hecht - 29 January 2025
+## ACCESS CONTROL v1.1.2
+Zan Hecht - 11 February 2025
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
@@ -24,41 +24,52 @@ INSTRUCTIONS
 
 The first time the sketch starts up (or after a reinitialization), the
 configuration code will be reset to 123456 on the pin pad (or whatever value
-is defined in the CONFIGURATION section of the code).
+is defined in the CONFIGURATION section of the code). If the PIN_LENGTH is
+different from the length of the configuration code, 0s will be added or
+digits will be removed from the beginning of the configuration code.
 
 ### Normal mode (three amber beeps/flashes, then no light)
 Enter any valid code or card (other than the configuration code/card) to
 unlock the door. To cancel entering a code, hit "#".
 
 If a valid card/code is entered, the green light will turn on and the door
-will unlock for 5 seconds (or as defined by UNLOCK_TIME in the CONFIGURATION
-section of the code).
+will unlock for 5 seconds (or as defined by UNLOCK_DURATION in the
+CONFIGURATION section of the code).
 
 If an incorrect code/card is entered, the reader will beep and flash red for
 one second. No codes/cards can be entered during this time. If an incorrect
-card/code is entered again, this period will increase to 2 seconds, then 4
+card/code is entered again, this period will double to 2 seconds, then to 4
 seconds, and then to 8 seconds. The initial lockout time and the maximum
-lockout time can be changed by defining LOCKOUT_TIME and LOCKOUT_MAX in the
-CONFIGURATION section of the code.
+lockout time can be changed by defining LOCKOUT_DURATION and
+LOCKOUT_MAX_MULTIPLIER in the CONFIGURATION section of the code. The lockout
+period can be disabled by setting LOCKOUT_DURATION to 0, and the limit on the
+maximum lockout time can be removed by setting LOCKOUT_MAX_MULTIPLIER to 0.
 
 Hit "*" to ring the doorbell. The green light will come on for half a second.
-You can also wire a physical doorbell button between DOORBELL_BUTTON_PIN and
-ground.
+This time can be changed by defining DOORBELL_DURATION in the CONFIGURATION
+section of the code. If DOORBELL_DURATION is set to 0, "*" will clear
+partially entered codes but not ring the doorbell. You can also wire a physical
+doorbell button between DOORBELL_BUTTON_PIN and ground.
 
 Enter the configuration code or card to enter configuration mode. The reader
 will beep/flash amber twice. The reader will automatically exit from
-configuration mode after a set amount of time with no input (determined by the
-TIMEOUT_DELAY in the CONFIGURATION section of the code).
+configuration mode after a set amount of time with no input (defaults to three
+times the unlock duration, determined by TIMEOUT_DELAY_MULTIPLIER in the
+CONFIGURATION section of the code).
 
 ### Configuration Mode (Two amber flashes, then solid amber)
 
-> Configuration mode will print all stored codes over the serial port.
-> The code in slot 1 is the configuration code.
+> Configuration mode will print all stored codes over the serial port (see the
+> Unhide/Hide section below). 26- and 34-bit codes are split so that the first
+> 3-5 characters are the facility code (the top 8-16 bits) and the last 5
+> digits are the ID number (the bottom 16 bits).
 > 
-> * Press "1" to Add a code/card
-> * Press "2" to Delete a code/card
-> * Press "3" to Change the configuration code/card
-> * Press "#" to Exit to normal mode
+> * Press/Type "1" to Add a code/card
+> * Press/Type "2" to Delete a code/card
+> * Press/Type "3" to Change the configuration code/card
+> * Type "4" to Delete by slot (via serial only)
+> * Type "0" to Unhide/Hide codes (via serial only)
+> * Press/Type "#" to Exit to normal mode
 > 
 > In general, the following signals are used:
 > * Two beeps and green flashes: operation successful
@@ -120,28 +131,41 @@ TIMEOUT_DELAY in the CONFIGURATION section of the code).
 >
 > > By default, entered codes are not displayed over the serial interface to
 > > prevent a third party from viewing codes as they are entered if you have a
-> > wireless serial interface on your board (if you do not have a wireless
+> > wireless serial interface on your board. If you do not have a wireless
 > > interface and the board is located in a secure area, you can change this
 > > default behavior by setting the HIDE_CODES variable in the CONFIGURATION
-> > section of the code to 0). Entering "0" in configuration mode via the
+> > section of the code to 0. Entering "0" in configuration mode via the
 > > serial interface will toggle this on or off.
 > >
-> > If HIDE_CODES is set to 1 and this option is toggled to "Unhide", the
-> > reader will continuously flash amber to warn that any entered codes are
-> > potentially visible.
+> > If SERIAL_ENABLE and HIDE_CODES are set to 1 and this option is toggled
+> > to "Unhide", the reader will continuously flash amber to warn that any
+> > entered codes are potentially visible.
 
 ### Reinitialize
  
 > If you forget your configuration code, or otherwise want to reset all stored
 > codes, short ground to pin 12 (or whatever pin is set to INIT_BUTTON_PIN in
 > the CONFIGURATION section of the code). This can be connected to a button if
-> the arduino is in a secure location, or it can be attached to a key switch.
+> the arduino is in a secure location.
 > 
 > When pin 12 is grounded, the reader will beep and flash amber. After the pin
 > has been grounded for 10 seconds, the flashing will change to green. Reset
 > or power-cycle the arduino, and it will delete all codes on power-up and
 > reset the configuration code to 123456 (or whatever value is defined in the
 > CONFIGURATION section of the code).
+
+TO DO
+-----
+* Store configuration in EEPROM in an unsigned long
+  * Parity Even (1 bit)
+  * Hide Codes (1 bit)
+  * Pin Length (4 bits)
+  * Timeout Unlock Time Multiplier (4 bits)
+  * Lockout Max Multiplier (4 bits)
+  * Initial Lockout Time (4 bits)
+  * Doorbell Duration (tenths of a second) (6 bits)
+  * Unlock Time (seconds) (7 bits)
+  * Parity Odd (1 bit)
 
 Changelog
 ---------
@@ -154,7 +178,8 @@ Changelog
    * 1.0.2 - Refine serial output
    * 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
 * 1.1.0 - "Hide codes in serial output" option added to prevent bluetooth sniffing
-   * 1.1.1 - Get rid of timeElapsed() function
+   * 1.1.1 - Get rid of timeElapsed() function, format codes as facility+id for display
+   * 1.1.2 - Fix rounding errors. Allow disabling lockout, lockout max, timeout, and doorbell.
 
 Copyright
 ---------
@@ -189,3 +214,4 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the full text of the Create-Commons license
 linked to above for more details.
+*/

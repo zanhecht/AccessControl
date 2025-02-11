@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////
-//                       ACCESS CONTROL v1.1.1                        //
+//                       ACCESS CONTROL v1.1.2                        //
 ////////////////////////////////////////////////////////////////////////
 #define ID_1 'A'
 #define ID_2 'C'
@@ -7,7 +7,7 @@
 #define ID_4 '1'
 
 /*
-Zan Hecht - 29 January 2025
+Zan Hecht - 11 February 2025
 http://zansstuff.com/access-control
 
 Requires forked Wiegand-Protocol-Library-for-Arduino from:
@@ -32,41 +32,52 @@ INSTRUCTIONS
 
 The first time the sketch starts up (or after a reinitialization), the
 configuration code will be reset to 123456 on the pin pad (or whatever value
-is defined in the CONFIGURATION section of the code).
+is defined in the CONFIGURATION section of the code). If the PIN_LENGTH is
+different from the length of the configuration code, 0s will be added or
+digits will be removed from the beginning of the configuration code.
 
 ### Normal mode (three amber beeps/flashes, then no light)
 Enter any valid code or card (other than the configuration code/card) to
 unlock the door. To cancel entering a code, hit "#".
 
 If a valid card/code is entered, the green light will turn on and the door
-will unlock for 5 seconds (or as defined by UNLOCK_TIME in the CONFIGURATION
-section of the code).
+will unlock for 5 seconds (or as defined by UNLOCK_DURATION in the
+CONFIGURATION section of the code).
 
 If an incorrect code/card is entered, the reader will beep and flash red for
 one second. No codes/cards can be entered during this time. If an incorrect
-card/code is entered again, this period will increase to 2 seconds, then 4
+card/code is entered again, this period will double to 2 seconds, then to 4
 seconds, and then to 8 seconds. The initial lockout time and the maximum
-lockout time can be changed by defining LOCKOUT_TIME and LOCKOUT_MAX in the
-CONFIGURATION section of the code.
+lockout time can be changed by defining LOCKOUT_DURATION and
+LOCKOUT_MAX_MULTIPLIER in the CONFIGURATION section of the code. The lockout
+period can be disabled by setting LOCKOUT_DURATION to 0, and the limit on the
+maximum lockout time can be removed by setting LOCKOUT_MAX_MULTIPLIER to 0.
 
 Hit "*" to ring the doorbell. The green light will come on for half a second.
-You can also wire a physical doorbell button between DOORBELL_BUTTON_PIN and
-ground.
+This time can be changed by defining DOORBELL_DURATION in the CONFIGURATION
+section of the code. If DOORBELL_DURATION is set to 0, "*" will clear
+partially entered codes but not ring the doorbell. You can also wire a physical
+doorbell button between DOORBELL_BUTTON_PIN and ground.
 
 Enter the configuration code or card to enter configuration mode. The reader
 will beep/flash amber twice. The reader will automatically exit from
-configuration mode after a set amount of time with no input (determined by the
-TIMEOUT_DELAY in the CONFIGURATION section of the code).
+configuration mode after a set amount of time with no input (defaults to three
+times the unlock duration, determined by TIMEOUT_DELAY_MULTIPLIER in the
+CONFIGURATION section of the code).
 
 ### Configuration Mode (Two amber flashes, then solid amber)
 
-> Configuration mode will print all stored codes over the serial port.
-> The code in slot 1 is the configuration code.
+> Configuration mode will print all stored codes over the serial port (see the
+> Unhide/Hide section below). 26- and 34-bit codes are split so that the first
+> 3-5 characters are the facility code (the top 8-16 bits) and the last 5
+> digits are the ID number (the bottom 16 bits).
 > 
-> * Press "1" to Add a code/card
-> * Press "2" to Delete a code/card
-> * Press "3" to Change the configuration code/card
-> * Press "#" to Exit to normal mode
+> * Press/Type "1" to Add a code/card
+> * Press/Type "2" to Delete a code/card
+> * Press/Type "3" to Change the configuration code/card
+> * Type "4" to Delete by slot (via serial only)
+> * Type "0" to Unhide/Hide codes (via serial only)
+> * Press/Type "#" to Exit to normal mode
 > 
 > In general, the following signals are used:
 > * Two beeps and green flashes: operation successful
@@ -128,22 +139,22 @@ TIMEOUT_DELAY in the CONFIGURATION section of the code).
 >
 > > By default, entered codes are not displayed over the serial interface to
 > > prevent a third party from viewing codes as they are entered if you have a
-> > wireless serial interface on your board (if you do not have a wireless
+> > wireless serial interface on your board. If you do not have a wireless
 > > interface and the board is located in a secure area, you can change this
 > > default behavior by setting the HIDE_CODES variable in the CONFIGURATION
-> > section of the code to 0). Entering "0" in configuration mode via the
+> > section of the code to 0. Entering "0" in configuration mode via the
 > > serial interface will toggle this on or off.
 > >
-> > If HIDE_CODES is set to 1 and this option is toggled to "Unhide", the
-> > reader will continuously flash amber to warn that any entered codes are
-> > potentially visible.
+> > If SERIAL_ENABLE and HIDE_CODES are set to 1 and this option is toggled
+> > to "Unhide", the reader will continuously flash amber to warn that any
+> > entered codes are potentially visible.
 
 ### Reinitialize
  
 > If you forget your configuration code, or otherwise want to reset all stored
 > codes, short ground to pin 12 (or whatever pin is set to INIT_BUTTON_PIN in
 > the CONFIGURATION section of the code). This can be connected to a button if
-> the arduino is in a secure location, or it can be attached to a key switch.
+> the arduino is in a secure location.
 > 
 > When pin 12 is grounded, the reader will beep and flash amber. After the pin
 > has been grounded for 10 seconds, the flashing will change to green. Reset
@@ -151,6 +162,18 @@ TIMEOUT_DELAY in the CONFIGURATION section of the code).
 > reset the configuration code to 123456 (or whatever value is defined in the
 > CONFIGURATION section of the code).
 
+TO DO
+-----
+* Store configuration in EEPROM in an unsigned long
+  * Parity Even (1 bit)
+  * Hide Codes (1 bit)
+  * Pin Length (4 bits)
+  * Timeout Unlock Time Multiplier (4 bits)
+  * Lockout Max Multiplier (4 bits)
+  * Initial Lockout Time (4 bits)
+  * Doorbell Duration (tenths of a second) (6 bits)
+  * Unlock Time (seconds) (7 bits)
+  * Parity Odd (1 bit)
 */
 
 /////////////////////////////CONFIGURATION//////////////////////////////
@@ -180,24 +203,28 @@ TIMEOUT_DELAY in the CONFIGURATION section of the code).
 #define INIT_BUTTON_PIN 12
 
 //Time the door is held unlocked, in seconds
-#define UNLOCK_TIME 5
+#define UNLOCK_DURATION 5
 
-//Time to hold doorbell button, in milliseconds
-#define DOORBELL_DUR 500
+//Time to hold doorbell button, in milliseconds (0 to disable * as doorbell).
+#define DOORBELL_DURATION 500
 
-//Default reader lockout time if bad card/pin used, in seconds
-#define LOCKOUT_TIME 1
+//Default reader lockout duration if bad card/pin used, in seconds (0 to
+//disable).
+#define LOCKOUT_DURATION 1
 
 //Lockout time will double with each consecutive bad card/pin
-//up to the limit specified here, in seconds
-#define LOCKOUT_MAX 8
+//up to the limit specified here times the LOCKOUT_DURATION (0 for no maximum).
+//For example, a LOCKOUT_DURATION of 2 and a LOCKOUT_MAX_MULTIPLIER of 4 would
+//result in a maximum lockout time of 8 seconds.
+#define LOCKOUT_MAX_MULTIPLIER 8
 
 //Number of digits in PIN codes
 #define PIN_LENGTH 6
 
-//How long before partially entered PINs time out (in seconds)
-//Config mode will wait 4 times as long before exiting
-#define TIMEOUT_DELAY 15
+//How long before partially entered PINs time out, as a multiple of
+//UNLOCK_DURATION (0 to disable). Config mode will wait 4 times as long before
+//exiting.
+#define TIMEOUT_DELAY_MULTIPLIER 3
 
 //Set to 1 to use CRC for EEPROM error checking
 //Set to 0 to use static version ID for for EPPROM error checking
@@ -216,19 +243,38 @@ WIEGAND wg;
 // Assorted function prototypes
 unsigned long assemblePIN(unsigned long code, byte pinLength=PIN_LENGTH);
 
-// Global Varibles
-unsigned long unlockEnd=0, lockoutEnd=0, doorBellEnd=0, initEnd=0, pin=0, nextPattern=0, timeoutTime=0, lockoutTime=LOCKOUT_TIME;
-byte pinCount = 0, patternPosition=0b00000001, serialAvailable = 0, hideCodes = HIDE_CODES;
-int mode = 0;
-
-byte indicators = 0b000;	 // Bit2 = buzzer, Bit1 = green, Bit0 = red
-byte pattern = 0b00000000; // On-off pattern in ~1/8 second increments
-byte repeat = 0;					 // Number of times to repeat pattern
-
+// Global Varibles and Constants
+unsigned long unlockEnd, lockoutEnd, doorBellEnd, initEnd;
+unsigned long pin, nextPattern, timeoutTime;
+unsigned long timeoutDuration, lockoutDuration, lockoutMax;
+byte pinCount, serialAvailable, hideCodes, patternPosition;
+byte indicators, pattern, repeat;
+int mode;
 const int ulSize = sizeof(unsigned long);
 const int eLength = EEPROM.length();
 
 void setup() {
+	//set global variables
+	unlockEnd=0;
+	lockoutEnd=0;
+	doorBellEnd=0;
+	initEnd=0;
+	pin=0;
+	nextPattern=0;
+	timeoutTime=0;
+	timeoutDuration=TIMEOUT_DELAY_MULTIPLIER*UNLOCK_DURATION;
+	lockoutDuration=LOCKOUT_DURATION;
+	lockoutMax=LOCKOUT_MAX_MULTIPLIER*LOCKOUT_DURATION;
+	pinCount = 0;
+	serialAvailable = 0;
+	hideCodes = HIDE_CODES;
+	patternPosition=0b00000001;
+	mode = 0;
+
+	indicators = 0b000;		// Bit2 = buzzer, Bit1 = green, Bit0 = red
+	pattern = 0b00000000;	// On-off pattern in ~1/8 second increments
+	repeat = 0;						// Number of times to repeat pattern
+
 	//set inputs
 	pinMode(DOORBELL_BUTTON_PIN, INPUT_PULLUP);
 	pinMode(INIT_BUTTON_PIN, INPUT_PULLUP);
@@ -265,6 +311,34 @@ void setup() {
 	
 	if(SERIAL_ENABLE) { Serial.print(F("CRC ")); Serial.print(slot0, DEC); Serial.println(F(" OK.")); }
 
+	//Print config
+	Serial.print(F("Hide codes: "));Serial.print(HIDE_CODES);
+	Serial.print(F("Unlock duration: "));
+	Serial.print(UNLOCK_DURATION);Serial.println(F(" seconds."));
+	Serial.print(F("Doorbell duration: "));
+	Serial.print(DOORBELL_DURATION);Serial.println(F(" milliseconds."));
+	Serial.print(F("Lockout: "));
+	Serial.print(lockoutDuration);Serial.println(F(" seconds."));
+	Serial.print(F("Lockout max: "));
+	Serial.print(lockoutMax);Serial.println(F(" seconds."));
+	Serial.print(F("Timeout: "));
+	Serial.print(timeoutDuration);Serial.println(F(" seconds."));
+	Serial.print(F("Pin length: "));
+	Serial.print(PIN_LENGTH);Serial.println(F(" digits."));
+	
+	//Make sure confCode is valid
+	unsigned long confCode;
+	EEPROM.get(ulSize, confCode);
+	int n = 0;
+	for(unsigned long c = confCode; c > 0; c /= 10) { n++; }
+	if ( n > PIN_LENGTH ) {
+		if(SERIAL_ENABLE) {
+			Serial.print(F("Configuration code trimmed to last "));
+			Serial.print(PIN_LENGTH); Serial.println(F(" digits."));
+		}
+		EEPROM.put( ulSize, (confCode % (unsigned long)pow(10, PIN_LENGTH)) );
+	}
+
 	//begin reading weigand data
 	wg.begin();
 
@@ -278,12 +352,12 @@ void loop() {
 		if(SERIAL_ENABLE) { Serial.println(F("Lockout ended.")); }
 	}
 
-	if (timeoutTime) { // If PIN reset timer is set
+	if (timeoutDuration && timeoutTime) { // If timeout enabled and PIN reset timer is set
 		if (!mode) { // If in normal mode
-			if (now > (timeoutTime + ((unsigned long)(TIMEOUT_DELAY) * 1000))) { // Pin timeout has passed
+			if (now > (timeoutTime + ((unsigned long)(timeoutDuration) * 1000))) { // Pin timeout has passed
 				assemblePIN(ESC_KEY);
 			}
-		} else if (now > (timeoutTime + ((unsigned long)(TIMEOUT_DELAY) * 4000))) { // 4 times pin timeout has passed
+		} else if (now > (timeoutTime + ((unsigned long)(timeoutDuration) * 4000))) { // 4 times pin timeout has passed
 			timeoutTime = 0;
 			enterNormal(0b111); //amber beep
 		}
@@ -333,7 +407,7 @@ void loop() {
 				if (serialAvailable == 1) {
 					codeType = 4;
 				} else if (serialAvailable > 1 && serialAvailable <= PIN_LENGTH) {
-					codeType = PIN_LENGTH;
+					codeType = 0;
 				} else if (serialAvailable <= 8) {
 					codeType = 26;
 				} else {
@@ -394,10 +468,10 @@ void loop() {
 		digitalWrite(DOOR_PIN, HIGH);
 	}
 	
-	if ( (doorBellEnd && (now < doorBellEnd)) || doorbellButton ) {
+	if ( (DOORBELL_DURATION && doorBellEnd && (now < doorBellEnd)) || doorbellButton ) {
 		digitalWrite(DOORBELL_PIN, LOW);
 	} else {
-		if(doorBellEnd) {
+		if(DOORBELL_DURATION && doorBellEnd) {
 			doorBellEnd = 0;
 			if (SERIAL_ENABLE) {Serial.println(F("DONG!")); }
 		}
@@ -405,7 +479,8 @@ void loop() {
 	}
 
 	//Set LED overrides for configuration modes
-	if (HIDE_CODES == 1 && hideCodes == 0) { //Hide Codes temporarily off
+	if (SERIAL_ENABLE && HIDE_CODES == 1 && hideCodes == 0) {
+		//Hide Codes temporarily off
 		ledTone(0b011, 0b01010101, 255); //amber, 4Hz, forever
 	} else if (mode && repeat != 1) {
 		switch (mode) {
@@ -465,13 +540,14 @@ void enterNormal(byte i) {
 void normalOperation(byte codeType, unsigned long code, unsigned long now) {
 	if (codeType == 4) { //keypad input
 		if (code == ENTER_KEY) { // (* key)
-			// Trigger doorbell
-			doorBellEnd = now + DOORBELL_DUR;
 			pinCount = 0;
 			pin = 0;
-			ledTone(0b010, 0b1111, 1); //green, 1/2 second, once
 			code = 0;
-			if (SERIAL_ENABLE) {Serial.print(F("DING! ")); }
+			if (DOORBELL_DURATION) { // Trigger doorbell
+				doorBellEnd = now + DOORBELL_DURATION;
+				ledTone(0b010, 0b1111, 1); //green, 1/2 second, once
+				if (SERIAL_ENABLE) {Serial.print(F("DING! ")); }
+			}
 		} else {
 			code = assemblePIN(code);
 		}
@@ -497,22 +573,29 @@ void normalOperation(byte codeType, unsigned long code, unsigned long now) {
 		int foundSlot = codeMatch(code);
 		
 		if (foundSlot) { //code found in EEPROM
-			lockoutTime = LOCKOUT_TIME;
+			lockoutDuration = LOCKOUT_DURATION;
 			if (foundSlot == ulSize) { // First stored code value enters configuration mode
 				enterConf(0b111, 1); //amber beep, mode 1
 			} else { // Other stored codes unlock door
 				if (SERIAL_ENABLE) { Serial.println(F("DOOR UNLOCKED")); }
-				unlockEnd = now + (UNLOCK_TIME * 1000);
+				unlockEnd = now + (UNLOCK_DURATION * 1000);
 				pinCount = 0;
 				pin = 0;
-				ledTone(0b010, 0b11111111, UNLOCK_TIME); //green, 1 second, number of unlocked seconds
+				ledTone(0b010, 0b11111111, UNLOCK_DURATION); //green, 1 second, number of unlocked seconds
 			}
 		} else {
-			// Code not recognized
-			if (SERIAL_ENABLE) { Serial.print(F("Code not recognized. Lockout for ")); Serial.println(lockoutTime); }
-			lockoutEnd = now + (lockoutTime * 1000);
-			ledTone(0b101, 0b10101010, lockoutTime); //red beep, 4Hz, until end of lockout
-			if (lockoutTime < LOCKOUT_MAX) { lockoutTime *= 2; }
+			if (SERIAL_ENABLE) { Serial.print(F("Code not recognized.")); }
+			if (lockoutDuration) {
+				if (SERIAL_ENABLE) {
+					Serial.print(F(" Lockout for "));
+					Serial.println(lockoutDuration);
+				}
+				lockoutEnd = now + (lockoutDuration * 1000);
+				ledTone(0b101, 0b10101010, lockoutDuration); //red beep, 4Hz, until end of lockout
+				if ((lockoutMax == 0) || ((lockoutDuration * 2) <= lockoutMax)) {
+					lockoutDuration *= 2;
+				}
+			}
 		}
 	}
 }
@@ -540,7 +623,7 @@ void confSelect(bool wgAvailable, unsigned long code) {
 	} else if ((SERIAL_ENABLE) && (!wgAvailable) && (code == 4)) { // Only available via serial
 		Serial.println(F("***DELETE BY SLOT #***"));
 		printCodes();
-		Serial.println(F("Enter slot # to delete (type '#' to exit):"));
+		Serial.println(F("Enter slot # to delete including leading 0 (type '#' to exit):"));
 		timeoutTime = millis();
 		mode = 44;
 	} else if ((SERIAL_ENABLE) && (!wgAvailable) && (code == 0)) { // Only available via serial
@@ -851,10 +934,14 @@ unsigned long assemblePIN(unsigned long code, byte pinLength=PIN_LENGTH) {
 
 int formatCode(unsigned long code, int type) {
 	if (type == 0) {
-		if ( (code == 0) || (int(log10(code) + 1) <= PIN_LENGTH) ) {
+		int n = 0;
+		for(unsigned long c = code; c > 0; c /= 10) { n++; }
+		if ( (code == 0) || (n <= PIN_LENGTH) ) {
 			type = 4;
 		} else {
-			type = ((int(log(code)/log(2)) + 1) <= 24) ? 26 : 34;
+			int n = 0;
+			for(unsigned long c = code; c > 0; c >>= 1) { n++; }
+			type = (n <= 24) ? 26 : 34;
 		}
 	}
 	if (hideCodes) {
@@ -913,6 +1000,7 @@ Changelog
    * 1.0.3 - Allow delete by slot to work with 2-digit slot numbers, zero pad codes
 * 1.1.0 - "Hide codes in serial output" option added to prevent bluetooth sniffing
    * 1.1.1 - Get rid of timeElapsed() function, format codes as facility+id for display
+   * 1.1.2 - Fix rounding errors. Allow disabling lockout, lockout max, timeout, and doorbell.
 
 Copyright
 ---------
